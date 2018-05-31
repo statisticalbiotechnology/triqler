@@ -11,15 +11,13 @@ import numpy as np
 import math
 import csv
 import os
-from collections import defaultdict
-from collections import namedtuple
 import itertools
+import re
+from collections import defaultdict, namedtuple
 
-from . import percolator
-
-####################################
-## input: filename (one per line) ##
-####################################
+################################################
+## input: filename <tab> group (one per line) ##
+################################################
 
 def parseFileList(inputFile):
   reader = csv.reader(open(inputFile, 'r'), delimiter = '\t')
@@ -46,24 +44,13 @@ def getQuantGroups(quantRow, groups, transform = np.log2):
   for group in groups:
     args.append([transform(quantRow[i]) for i in group if not np.isnan(quantRow[i])])
   return args
-  
-#####################
-## input: MS2 file ##
-#####################
 
-def parseMs2ToIntensityRTime(inputFile):
-  scannrToIntensityRTimeMap = defaultdict(dict)
+def getRunIds(params):
+  return [parsers.getGroupLabel(idx, params['groups'], params['groupLabels']) + ":" + x.split("/")[-1] for idx, x in enumerate(params['fileList'])]
 
-  scannr = 0
-  with open(inputFile, 'r') as f:
-    for line in f:
-      if line.startswith('S'):
-        scannr = int(line.split('\t')[1])
-      elif line.startswith('I\tEZ'):
-        s = line.split('\t')
-        scannrToIntensityRTimeMap[scannr][(int(s[2]), float(s[3]))] = (float(s[5]), float(s[4]))
-
-  return scannrToIntensityRTimeMap
+############################
+## Feature cluster files  ##
+############################
 
 PrecursorCandidate = namedtuple("PrecursorCandidate", "fileIdx, fileName precMz charge rTime intensity peptLinkPEPs")
 
@@ -90,6 +77,11 @@ def parseFeatureClustersFile(clusterQuantFile):
     i += 1
     yield x
 
+##########################
+## Triqler input files  ##
+##########################
+
+TriqlerSimpleInputRowHeaders = "run condition charge searchScore intensity peptide proteins".split(" ")
 TriqlerInputRowHeaders = "run condition charge spectrumId linkPEP featureClusterId searchScore intensity peptide proteins".split(" ")
 TriqlerInputRowBase = namedtuple("TriqlerInputRow", TriqlerInputRowHeaders)
 
@@ -97,39 +89,55 @@ class TriqlerInputRow(TriqlerInputRowBase):
   def toList(self):
     l = list(self)
     return l[:-1] + l[-1]
+  
+  def toSimpleList(self):
+    l = list(self)
+    return l[:3] + l[6:-1] + l[-1]
 
   def toString(self):
     return "\t".join(map(str, self.toList()))
 
 def parseTriqlerInputFile(triqlerInputFile):
   reader = csv.reader(open(triqlerInputFile, 'r'), delimiter = '\t')
-  next(reader)
-  for row in reader:
-    yield TriqlerInputRow(row[0], row[1], int(row[2]), int(row[3]), float(row[4]), int(row[5]), float(row[6]), float(row[7]), row[8], row[9:])
-  
-PeptideQuantRowHeaders = "combinedPEP linkPEP expMass charge rTime pseudoPeptide quant protein identificationPEP peptide".split(" ")
+  headers = next(reader)
+  hasLinkPEPs = "linkPEP" in headers
+  seenPeptChargePairs = dict()
+  for i, row in enumerate(reader):
+    if hasLinkPEPs:
+      yield TriqlerInputRow(row[0], row[1], int(row[2]), int(row[3]), float(row[4]), int(row[5]), float(row[6]), float(row[7]), row[8], row[9:])
+    else:
+      key = (int(row[2]), row[5])
+      if key not in seenPeptChargePairs:
+        seenPeptChargePairs[key] = len(seenPeptChargePairs)
+      yield TriqlerInputRow(row[0], row[1], int(row[2]), i, 0.0, seenPeptChargePairs[key], float(row[3]), float(row[4]), row[5], row[6:])
+
+##############################
+## Peptide quant row files  ##
+##############################
+
+PeptideQuantRowHeaders = "combinedPEP charge pseudoPeptide linkPEP quant identificationPEP peptide protein".split(" ")
 PeptideQuantRowBase = namedtuple("PeptideQuantRow", PeptideQuantRowHeaders)
 
 class PeptideQuantRow(PeptideQuantRowBase):
   def toList(self):
     l = list(self)
-    return l[:1] + list(map(lambda x : '%.5g' % x, l[1])) + l[2:6] + list(map(lambda x : '%.2f' % x, l[6])) + l[7:]
+    return l[:3] + list(map(lambda x : '%.5g' % x, l[3])) + list(map(lambda x : '%.2f' % x, l[4])) + l[5:7] + l[7]
 
   def toString(self):
     return "\t".join(map(str, self.toList()))
 
 def getPeptideQuantRowHeaders(runs):
-  return PeptideQuantRowHeaders[:1] + runs + PeptideQuantRowHeaders[2:6] + runs + PeptideQuantRowHeaders[7:]
+  return PeptideQuantRowHeaders[:3] + runs + runs + PeptideQuantRowHeaders[5:]
 
 def parsePeptideQuantFile(peptideQuantFile):
   reader = csv.reader(open(peptideQuantFile, 'r'), delimiter = '\t')
   header = next(reader)
-  numRuns = header.index("protein") - header.index("pseudoPeptide") - 1
+  numRuns = (header.index("identificationPEP") - header.index("pseudoPeptide") - 1) / 2
   peptideQuantRows = list()
   for row in reader:
-    peptideQuantRows.append(PeptideQuantRow(float(row[0]), list(map(float, row[1:1+numRuns])), float(row[1+numRuns]), int(row[2+numRuns]), float(row[3+numRuns]), row[4+numRuns], list(map(float, row[5+numRuns:5+2*numRuns])), row[5+2*numRuns], float(row[6+2*numRuns]), row[7+2*numRuns]))
+    peptideQuantRows.append(PeptideQuantRow(float(row[0]), int(row[1]), row[2+numRuns], list(map(float, row[3:3+numRuns])), list(map(float, row[3+numRuns:3+2*numRuns])), float(row[3+2*numRuns]), row[4+2*numRuns], row[5+2*numRuns:]))
 
-  runIdsWithGroup = header[1:1+numRuns]
+  runIdsWithGroup = header[3:3+numRuns]
   maxGroups = max([int(runId.split(":")[0]) for runId in runIdsWithGroup])
   runIds = list()
   groups, groupLabels = [None] * maxGroups, [None] * maxGroups
@@ -148,13 +156,12 @@ def getPeptideQuantFileHeaders(peptideQuantFile):
   header = next(reader)
   return header
 
-def parsePercPsmsPseudoPeptideFile(percPsmsFile):
-  pseudoPeptRealPeptMap = defaultdict(list)
-  for psm in percolator.parsePsmsPout(percPsmsFile):
-    pseudoPept = c.clusterIdxToPseudoSeq(psm.scannr)
-    pseudoPeptRealPeptMap[pseudoPept].append(psm._replace(id = pseudoPept))
-  return pseudoPeptRealPeptMap
-
+def filterAndGroupPeptides(peptQuantRows, peptFilter = lambda x : True):
+  validPqr = lambda x : len(x.protein) == 1 and x.protein[0] != "NA" and x.combinedPEP < 1.0
+  peptQuantRows = filter(lambda x : validPqr(x) and peptFilter(x), peptQuantRows)
+  protQuantRows = itertools.groupby(sorted(peptQuantRows, key = lambda x : x.protein[0]), key = lambda x : x.protein[0])
+  return protQuantRows
+  
 #########################################
 ## peptide1;linkPEP1,peptide2;linkPEP2 ##
 #########################################
@@ -174,13 +181,17 @@ def parsePeptideLinkPEPs(peptideString):
 def serializePeptideLinkPEPs(peptideLinkPEPPairs):
   return ",".join([x + ";" + str(round(y,4)) for x,y in peptideLinkPEPPairs.items()])
 
+###################################
+## Quant matrix helper functions ##
+###################################
+
 def getQuantMatrix(quantRows, condenseChargeStates = True, retainBestChargeState = True):
   quantRows = list(quantRows) # contains full information about the quantification row
   if condenseChargeStates:
-    peptQuantRowGroups = itertools.groupby(sorted(quantRows, key = lambda x : x.peptide[2:-2].replace("[UNIMOD:4]", "")), key = lambda x : getMods(x.peptide)[1])
+    peptQuantRowGroups = itertools.groupby(sorted(quantRows, key = lambda x : cleanPeptide(x.peptide)), key = lambda x : cleanPeptide(x.peptide))
     quantRows = list() # contains full information about the quantification row
     quantMatrix = list() # contains just the quantification values
-    for peptSeq, pqrs in peptQuantRowGroups:
+    for _, pqrs in peptQuantRowGroups:
       pqrs = list(pqrs)
       if retainBestChargeState:
         pqrs = sorted(pqrs, key = lambda x : x.combinedPEP)
@@ -219,44 +230,8 @@ def geomAvg(row):
 
 def geoNormalize(row):
   return row / geomAvg(row)
-  
-def getMods(modPeptide):
-  peptide = ""
-  peptideIdx = 0
-  mods = [0]
-  inMod = False
-  for i in range(len(modPeptide)):
-    if modPeptide[i] == "[":
-      j = modPeptide[i:].find("]")
-      if modPeptide[i+1:i+j].startswith("UNIMOD:"):
-        unimodId = int(modPeptide[i+1:i+j].split(":")[1])
-        if unimodId == 4: # Carboxyamidomethylation peptide N-term or aa
-          if i == 0 or modPeptide[i-1] != "C":
-            massDiff = 57.021464
-          else:
-            massDiff = 0.0
-        elif unimodId == 5: # Carbamylation peptide N-term
-          massDiff = 43.005814
-        elif unimodId == 1: # Acetylation peptide N-term
-          massDiff = 42.010565
-        elif unimodId == 28 or unimodId == 385: # Pyro-glu from Q / Pyro-carbamidomethyl as a delta from Carbamidomethyl-Cys
-          massDiff = -17.026549
-        elif unimodId == 27: # Pyro-glu from E
-          massDiff = -18.010565
-        elif unimodId == 35: # Oxidation of M
-          massDiff = 15.994915
-        else:
-          sys.exit("Unknown UNIMOD id: " + str(unimodId))
-        mods[peptideIdx] += massDiff
-      else:
-        mods[peptideIdx] += float(modPeptide[i+1:i+j])
-      if mods[peptideIdx] == 16.0: # more accurate monoisotopic mass for oxidations
-        mods[peptideIdx] = 15.994915
-      inMod = True
-    elif modPeptide[i] == "]":
-      inMod = False
-    elif not inMod:
-      peptide += modPeptide[i]
-      peptideIdx += 1
-      mods.append(0)
-  return mods, peptide
+
+def cleanPeptide(peptide):
+  if peptide[1] == "." and peptide[-2] == ".":
+    peptide = peptide[2:-2]
+  return re.sub('\[[-0-9]*\]', '', peptide)

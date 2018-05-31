@@ -8,31 +8,41 @@ import itertools
 import numpy as np
 from scipy.stats import f_oneway, kruskal
 
-from . import percolator
 from . import parsers
+from . import qvality
 
-def doDiffExp(params, peptQuantRows, peptQuantRowFile, proteinQuantificationMethod, selectComparison, qvalMethod):    
-  proteinModifier, getEvalFeatures, evalFunctions = getEvalFunctions(peptQuantRowFile, params)
+def doDiffExp(params, peptQuantRows, outputFile, proteinQuantificationMethod, selectComparison, qvalMethod):    
+  proteinModifier, getEvalFeatures, evalFunctions = getEvalFunctions(outputFile, params)
   
   proteinOutputRows = proteinQuantificationMethod(peptQuantRows, params, proteinModifier, getEvalFeatures)
   
+  outputFile, outputFileExt = getOutpuFileExtension(outputFile)
   numGroups = len(params['groups'])
   if numGroups > 2:
     for groupId1, groupId2 in itertools.combinations(range(numGroups), 2):
       params['groupIdsDiffExp'] = (groupId1, groupId2)
-      proteinOutputFile = peptQuantRowFile.replace("_peptides.tsv", "_proteins.%dvs%d.tsv" % (groupId1 + 1, groupId2 + 1))
+      proteinOutputFile = outputFile.replace(outputFileExt, ".%dvs%d%s" % (groupId1 + 1, groupId2 + 1, outputFileExt if len(outputFileExt) > 1 else ""))
       print(proteinOutputFile)
-      if len(params["trueConcentrationsDict"]) > 0:
+      if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
         evalFunctions = [lambda protein, evalFeatures : evalTruePositiveTtest(params["trueConcentrationsDict"], protein, groupId1, groupId2, evalFeatures[-2], params)]
       proteinOutputRowsGroup = selectComparison(proteinOutputRows, (groupId1, groupId2))
       getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params)
   
-  proteinOutputFile = peptQuantRowFile.replace("_peptides.tsv", "_proteins.tsv")
+  if numGroups > 4:
+    print("WARNING: this ANOVA-like test might not behave well if >4 treatment groups are present")
+  proteinOutputFile = outputFile
   print(proteinOutputFile)
   proteinOutputRowsGroup = selectComparison(proteinOutputRows, 'ANOVA')
-  if len(params["trueConcentrationsDict"]) > 0:
+  if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
     evalFunctions = [lambda protein, evalFeatures : evalTruePositiveANOVA(params["trueConcentrationsDict"], protein)]
   getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params)
+
+def getOutpuFileExtension(outputFile):
+  fileName = outputFile.split("/")[-1]
+  if "." in fileName:
+    return outputFile, "." + fileName.split(".")[-1]
+  else:
+    return outputFile + ".", "."
 
 def getTrueConcentrations(trueConcentrationsDict, protein):
   for key, value in trueConcentrationsDict.items():
@@ -103,7 +113,7 @@ def getFoldChange(quants, params):
 def getFc(quants, params, groupId1, groupId2):
   return np.log2(np.mean([quants[x] for x in params['groups'][groupId1]]) / np.mean([quants[x] for x in params['groups'][groupId2]]))
   
-def getQvals(peptideOutputRows, qvalMethod, evalFunctions, outputFile, params):
+def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params):
   writer = csv.writer(open(outputFile, 'w'), delimiter = '\t')
   plotCalibration = len(evalFunctions) > 0
   if plotCalibration:
@@ -118,17 +128,18 @@ def getQvals(peptideOutputRows, qvalMethod, evalFunctions, outputFile, params):
   
   if 'pvalues' in qvalMethod:
     targetPvalues = list()
-    for i, (combinedPEP, _, protein, quantRows, evalFeatures, numPeptides, proteinIdPEP) in enumerate(peptideOutputRows):
+    for i, (_, _, _, _, evalFeatures, _, _, _) in enumerate(proteinOutputRows):
       targetPvalues.append(evalFeatures[-1])
-    reportedQvalsPval, reportedPEPsPval = percolator.getQvalues(targetPvalues, includePEPs = True)
+    reportedQvalsPval, reportedPEPsPval = qvality.getQvalues(targetPvalues, includePEPs = True)
+    #reportedQvalsPval, reportedPEPsPval = qvality.getQvaluesPyImpl(targetPvalues, includePEPs = True)
   
-  nextScores = [x[0] for x in peptideOutputRows] + [np.nan]
-  for i, (combinedPEP, _, protein, quantRows, evalFeatures, numPeptides, proteinIdPEP) in enumerate(peptideOutputRows):
+  nextScores = [x[0] for x in proteinOutputRows] + [np.nan]
+  for i, (combinedPEP, _, protein, quantRows, evalFeatures, numPeptides, proteinIdPEP, quants) in enumerate(proteinOutputRows):
     if 'pvalues_with_fc' in qvalMethod and np.abs(evalFeatures[-2]) < params['foldChangeEval']:
       continue
     
     if plotCalibration:
-      if not "decoy_" in protein:
+      if not protein.startswith(params['decoyPattern']):
         if evalTruePositives(protein, evalFeatures):
           tp += 1
         else:
@@ -136,7 +147,7 @@ def getQvals(peptideOutputRows, qvalMethod, evalFunctions, outputFile, params):
       observedQval = float(fp) / (tp+fp)
 
     score = combinedPEP
-    if not "decoy_" in protein:
+    if not protein.startswith(params['decoyPattern']):
       sumPEP += combinedPEP
       targets += 1
       qval = sumPEP / targets
@@ -147,29 +158,28 @@ def getQvals(peptideOutputRows, qvalMethod, evalFunctions, outputFile, params):
       for _ in range(numTies):
         if 'pvalues' in qvalMethod:
           reportedQvals.append(reportedQvalsPval[i])
-          reportedPEPs.append(reportedPEPsPval[i])
         else:
           reportedQvals.append(qval)
         
         if plotCalibration:
           observedQvals.append(observedQval)
       numTies = 1
-
-    outRows.append([combinedPEP, protein, numPeptides, proteinIdPEP] + evalFeatures + [quantRows[0].peptide, quantRows[0].identificationPEP])
-
-  if 'pvalues' not in qvalMethod:
-    reportedPEPs = [np.nan]*len(reportedQvals)
+    
+    if 'pvalues' in qvalMethod:
+      combinedPEP = reportedPEPsPval[i]
+    
+    outRows.append(["%.4g" % combinedPEP, protein, numPeptides, "%.4g" % proteinIdPEP] + ["%.4g" % x for x in evalFeatures] + ["%.4g" % x for x in quants] + [x.peptide for x in quantRows])
   
   if plotCalibration:
     observedQvals = fdrsToQvals(observedQvals)
 
-    writer.writerow(["observed_qval", "reported_qval", "reported_PEP", "combined_PEP", "protein", "num_peptides", "protein_id_PEP"] + evalHeaders + ["peptide", "peptide_PEP"])
-    for outRow, observedQval, reportedQval, reportedPEP in zip(outRows, observedQvals, reportedQvals, reportedPEPs):
-      writer.writerow(["%.4g" % (observedQval), "%.4g" % (reportedQval), "%.4g" % (reportedPEP)] + outRow)
+    writer.writerow(["observed_qval", "reported_qval", "PEP", "protein", "num_peptides", "protein_id_PEP"] + evalHeaders + parsers.getRunIds(params) + ["peptides"])
+    for outRow, observedQval, reportedQval in zip(outRows, observedQvals, reportedQvals):
+      writer.writerow(["%.4g" % (observedQval), "%.4g" % (reportedQval)] + outRow)
   else:
-    writer.writerow(["qval", "PEP", "combined_PEP", "protein", "num_peptides", "protein_id_PEP"] + evalHeaders + ["peptide", "peptide_PEP"])
-    for outRow, reportedQval, reportedPEP in zip(outRows, reportedQvals, reportedPEPs):
-      writer.writerow(["%.4g" % (reportedQval), "%.4g" % (reportedPEP)] + outRow)
+    writer.writerow(["qval", "PEP", "protein", "num_peptides", "protein_id_PEP"] + evalHeaders + parsers.getRunIds(params) + ["peptides"])
+    for outRow, reportedQval in zip(outRows, reportedQvals):
+      writer.writerow(["%.4g" % (reportedQval)] + outRow)
 
 def fdrsToQvals(fdrs):
   qvals = [0] * len(fdrs)

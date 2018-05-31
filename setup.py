@@ -95,8 +95,7 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
         'numpy>=1.10',
-        'scipy>=0.17',
-        'matplotlib>=1.3.1'],
+        'scipy>=0.17'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). Users will be able to install these using the "extras"

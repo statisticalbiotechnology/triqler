@@ -3,6 +3,11 @@
 
 from __future__ import print_function
 
+import subprocess
+import tempfile
+import csv
+import os
+
 import numpy as np
 import bisect
 
@@ -13,7 +18,7 @@ gRange = 35.0
 weightSlope = 1e1
 VERB = 3
 
-def getQvaluesFromScores(targetScores, decoyScores, includePEPs = False, includeDecoys = False, tdcInput = False):
+def getQvaluesFromScoresPyImpl(targetScores, decoyScores, includePEPs = False, includeDecoys = False, tdcInput = False):
   combined = list(map(lambda x : (x, True), targetScores)) + list(map(lambda x : (x, False), decoyScores))
   np.random.shuffle(combined) # shuffle all scores so that target and decoy hits with identical scores are in a random order later
   combined = sorted(combined, reverse = True)
@@ -26,7 +31,7 @@ def getQvaluesFromScores(targetScores, decoyScores, includePEPs = False, include
   variables = roughnessPenaltyIRLS(medians, negatives, sizes)
   
   probs = np.minimum(1.0, np.exp(list(map(lambda score : splineEval(score, medians, variables), [x[0] for x in combined]))))
-  return probs
+  return None, probs
 
 def binData(combined, numBins = 500):
   binEdges = list(map(lambda x : int(np.floor(x)), np.linspace(0, len(combined), numBins+1)))
@@ -198,9 +203,86 @@ def splineEval(score, medians, variables):
     gx = g[0] - (medians[0] - score) * derr
     return gx
 
+def getQvalues(pvalues, includePEPs = False):
+  fdp, pvalFile = tempfile.mkstemp()
+  with open(pvalFile, 'w') as w:
+    for pval in pvalues:
+      w.write(str(pval) + '\n')
+  
+  fdq, qvalFile = tempfile.mkstemp()
+  rc = subprocess.call("qvality %s > %s" % (pvalFile, qvalFile), shell=True)
+  if includePEPs:
+    qvals, peps = parseQvalues(qvalFile, includePEPs = includePEPs)
+  else:
+    qvals = parseQvalues(qvalFile)
+  
+  os.unlink(pvalFile)
+  os.unlink(qvalFile)
+  if includePEPs:
+    return qvals, peps
+  else:
+    return qvals
+
+def getQvaluesFromScores(targetScores, decoyScores, includePEPs = False, includeDecoys = False, tdcInput = False):
+  fdp, targetFile = tempfile.mkstemp()
+  with open(targetFile, 'w') as w:
+    for s in targetScores:
+      w.write(str(s) + '\n')
+  
+  fdp2, decoyFile = tempfile.mkstemp()
+  with open(decoyFile, 'w') as w:
+    for s in decoyScores:
+      w.write(str(s) + '\n')
+  
+  fdq, qvalFile = tempfile.mkstemp()
+  if tdcInput:
+    tdcInputFlag = "-Y"
+  else:
+    tdcInputFlag = ""
+  
+  rc = subprocess.call("qvality %s %s %s > %s" % (tdcInputFlag, targetFile, decoyFile, qvalFile), shell=True)
+  if includePEPs:
+    qvals, peps = parseQvalues(qvalFile, includePEPs = includePEPs)
+  else:
+    qvals = parseQvalues(qvalFile)
+  
+  if includeDecoys:
+    targetScores = np.array(targetScores[::-1])
+    maxIdx = len(targetScores) - 1
+    for s in decoyScores[::-1]:
+      idx = np.searchsorted(targetScores, s, side='left')
+      qvals.append(qvals[maxIdx-idx])
+      if includePEPs:
+        peps.append(peps[maxIdx-idx])
+    qvals = sorted(qvals)
+    if includePEPs:
+      peps = sorted(peps)
+      
+  os.unlink(targetFile)
+  os.unlink(decoyFile)
+  os.unlink(qvalFile)
+  if includePEPs:
+    return qvals, peps
+  else:
+    return qvals
+    
+def parseQvalues(qvalFile, includePEPs = False):
+  reader = csv.reader(open(qvalFile, 'r'), delimiter = '\t')
+  next(reader)
+  
+  qvals, peps = list(), list()
+  for row in reader:
+    if includePEPs:
+      peps.append(float(row[1]))
+    qvals.append(float(row[2]))
+  
+  if includePEPs:
+    return qvals, peps
+  else:
+    return qvals
+    
 def unitTest():
   import scipy.stats
-  import percolator
   import matplotlib.pyplot as plt
 
   for s in range(1):
@@ -210,8 +292,8 @@ def unitTest():
     #decoyScores = np.round(np.random.normal(0.0,1,N), 1)
     targetScores = np.random.normal(2.0,1,N) + np.random.normal(0.0,1,N)
     decoyScores = np.random.normal(0.0,1,N)
-    peps1 = getQvaluesFromScores(targetScores, decoyScores)
-    _, peps2 = percolator.getQvaluesFromScores(targetScores, decoyScores, includePEPs = True, includeDecoys = True, tdcInput = True)
+    _, peps1 = getQvaluesFromScoresPyImpl(targetScores, decoyScores)
+    _, peps2 = getQvaluesFromScores(targetScores, decoyScores, includePEPs = True, includeDecoys = True, tdcInput = True)
     
     sortedScores = sorted(targetScores + decoyScores, reverse = True)
     plt.figure(s+1)

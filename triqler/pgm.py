@@ -5,7 +5,6 @@ from __future__ import print_function
 import itertools
 
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.stats import f_oneway, gamma
 from scipy.optimize import curve_fit
 
@@ -34,8 +33,6 @@ def getProbBelowFoldChangeDict(pProteinGroupQuants, params):
 def getProbBelowFoldChange(pProteinGroupQuants, params):  
   if len(pProteinGroupQuants) >= 2:
     convProbs = convolution_dp.convolveProbs(pProteinGroupQuants)
-    #plt.figure(6)
-    #plt.imshow(convProbs, extent = [params['proteinQuantCandidates'][0], params['proteinQuantCandidates'][-1], params['proteinQuantCandidates'][0], params['proteinQuantCandidates'][-1]])
     bandwidth = np.searchsorted(params['proteinQuantCandidates'], params['proteinQuantCandidates'][0] + np.log10(2**params['foldChangeEval']))
     probBelowFoldChange = 0.0
     for i in range(bandwidth):
@@ -163,10 +160,6 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params, pri
     priorProteinQuantCandidates = hyperparameters.funcHypsec(params['proteinQuantCandidates'], params["muProtein"], params["sigmaProtein"])
     
     pProteinQuant = np.log(priorProteinQuantCandidates) # log likelihood
-    if plot:
-      plt.figure(j + 10)
-      #plt.plot(params['proteinQuantCandidates'], np.exp(pProteinQuant), label = 'prior')
-      plt.plot(params['proteinQuantCandidates'], pProteinQuant, label = 'prior')
     
     for i, row in enumerate(quantMatrix):
       linkPEP = quantRows[i].linkPEP[j]
@@ -179,11 +172,6 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params, pri
         else:
           likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - linkPEP) + pQuantIncorrectId[i][j] * linkPEP
         pProteinQuant += np.log(likelihood)
-        if plot: 
-          #plt.plot(params['proteinQuantCandidates'], likelihood, label = quantRows[i].peptide)
-          #plt.plot(params['proteinQuantCandidates'], np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant)) * 100, ':', label = quantRows[i].peptide)
-          plt.plot(params['proteinQuantCandidates'], pProteinQuant, ':', label = quantRows[i].peptide)
-          plt.plot(params['proteinQuantCandidates'], np.log(likelihood), ':', label = quantRows[i].peptide)
     pProteinQuants = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
     
     pProteinQuantsList.append(pProteinQuants)
@@ -193,11 +181,7 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params, pri
     
     if printStats:
       print(eValue, confRegion)
-    
-    
-  if plot:
-    plt.legend(fontsize = 8)
-    plt.show()
+  
   #print(bayesQuantRow)
   if printStats:
     print("")
@@ -247,9 +231,6 @@ def getPosteriorProteinGroupSigma(muProteinGroup, groupId, pProteinQuantsList, p
     pSigmas += np.log(pProteinQuants)
   pSigmas = np.exp(pSigmas) / np.sum(np.exp(pSigmas))
   
-  #plt.figure(6)
-  #plt.plot(params['sigmaCandidates'], pSigmas)
-  
   return pSigmas
 
 def getProteinSigmaPosterior(protQuants):
@@ -257,12 +238,11 @@ def getProteinSigmaPosterior(protQuants):
   logLikelihoods = list()
   for sigma in sigmaCandidates:
     logLikelihoods.append(np.sum(np.log(hyperparameters.funcHypsec(protQuants, 0.0, sigma))))
-    
-  plt.figure()
+  
   logLikelihoods = np.nan_to_num(logLikelihoods)
   logLikelihoods -= np.max(logLikelihoods)
   logLikelihoods = np.exp(logLikelihoods) / np.sum(np.exp(logLikelihoods))
-  plt.plot(sigmaCandidates, logLikelihoods)
+  
   print("sigmaProtein MAP estimate:", sigmaCandidates[np.argmax(logLikelihoods)])
   
 def getPosteriorParams(proteinQuantCandidates, pProteinQuants):

@@ -18,23 +18,25 @@ def doDiffExp(params, peptQuantRows, outputFile, proteinQuantificationMethod, se
   
   outputFile, outputFileExt = getOutpuFileExtension(outputFile)
   numGroups = len(params['groups'])
-  if numGroups > 2:
+  if numGroups >= 2:
     for groupId1, groupId2 in itertools.combinations(range(numGroups), 2):
       params['groupIdsDiffExp'] = (groupId1, groupId2)
-      proteinOutputFile = outputFile.replace(outputFileExt, ".%dvs%d%s" % (groupId1 + 1, groupId2 + 1, outputFileExt if len(outputFileExt) > 1 else ""))
+      if numGroups == 2:
+        proteinOutputFile = outputFile
+      else:
+        proteinOutputFile = outputFile.replace(outputFileExt, ".%dvs%d%s" % (groupId1 + 1, groupId2 + 1, outputFileExt if len(outputFileExt) > 1 else ""))
       print(proteinOutputFile)
+      proteinOutputRowsGroup = selectComparison(proteinOutputRows, (groupId1, groupId2))
       if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
         evalFunctions = [lambda protein, evalFeatures : evalTruePositiveTtest(params["trueConcentrationsDict"], protein, groupId1, groupId2, evalFeatures[-2], params)]
-      proteinOutputRowsGroup = selectComparison(proteinOutputRows, (groupId1, groupId2))
       getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params)
   
-  if numGroups > 4:
-    print("WARNING: this ANOVA-like test might not behave well if >4 treatment groups are present")
-  proteinOutputFile = outputFile
-  print(proteinOutputFile)
-  proteinOutputRowsGroup = selectComparison(proteinOutputRows, 'ANOVA')
-  if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
-    evalFunctions = [lambda protein, evalFeatures : evalTruePositiveANOVA(params["trueConcentrationsDict"], protein)]
+  if False:
+    proteinOutputFile = outputFile
+    print(proteinOutputFile)
+    proteinOutputRowsGroup = selectComparison(proteinOutputRows, 'ANOVA')
+    if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
+      evalFunctions = [lambda protein, evalFeatures : evalTruePositiveANOVA(params["trueConcentrationsDict"], protein)]
   getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params)
 
 def getOutpuFileExtension(outputFile):
@@ -119,7 +121,11 @@ def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params):
   if plotCalibration:
     evalTruePositives = evalFunctions[0]
   
-  evalHeaders = ["log2_fold_change", "diff_exp_pval_" + str(params['foldChangeEval'])]
+  if 'pvalues' in qvalMethod:
+    evalHeaders = ["log2_fold_change", "diff_exp_pval_" + str(params['foldChangeEval'])]
+  else:
+    evalHeaders = ["log2_fold_change", "diff_exp_prob_" + str(params['foldChangeEval'])]
+  
   outRows = list()
   observedQvals, reportedQvals, reportedPEPs = list(), list(), list()
   sumPEP, fp, tp = 0.0, 1, 0
@@ -131,7 +137,6 @@ def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params):
     for i, (_, _, _, _, evalFeatures, _, _, _) in enumerate(proteinOutputRows):
       targetPvalues.append(evalFeatures[-1])
     reportedQvalsPval, reportedPEPsPval = qvality.getQvalues(targetPvalues, includePEPs = True)
-    #reportedQvalsPval, reportedPEPsPval = qvality.getQvaluesPyImpl(targetPvalues, includePEPs = True)
   
   nextScores = [x[0] for x in proteinOutputRows] + [np.nan]
   for i, (combinedPEP, _, protein, quantRows, evalFeatures, numPeptides, proteinIdPEP, quants) in enumerate(proteinOutputRows):
@@ -170,14 +175,15 @@ def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params):
     
     outRows.append(["%.4g" % combinedPEP, protein, numPeptides, "%.4g" % proteinIdPEP] + ["%.4g" % x for x in evalFeatures] + ["%.4g" % x for x in quants] + [x.peptide for x in quantRows])
   
+  protOutputHeaders = ["posterior_error_prob", "protein", "num_peptides", "protein_id_posterior_error_prob"] + evalHeaders + parsers.getRunIds(params) + ["peptides"]
   if plotCalibration:
     observedQvals = fdrsToQvals(observedQvals)
 
-    writer.writerow(["observed_qval", "reported_qval", "PEP", "protein", "num_peptides", "protein_id_PEP"] + evalHeaders + parsers.getRunIds(params) + ["peptides"])
+    writer.writerow(["observed_q_value", "reported_q_value"] + protOutputHeaders)
     for outRow, observedQval, reportedQval in zip(outRows, observedQvals, reportedQvals):
       writer.writerow(["%.4g" % (observedQval), "%.4g" % (reportedQval)] + outRow)
   else:
-    writer.writerow(["qval", "PEP", "protein", "num_peptides", "protein_id_PEP"] + evalHeaders + parsers.getRunIds(params) + ["peptides"])
+    writer.writerow(["q_value"] + protOutputHeaders)
     for outRow, reportedQval in zip(outRows, reportedQvals):
       writer.writerow(["%.4g" % (reportedQval)] + outRow)
 

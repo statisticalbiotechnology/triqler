@@ -13,14 +13,11 @@ from scipy.optimize import curve_fit
 
 from . import parsers
 
-def printQuantRows(quantMatrix, quantRows):
-  for i, row in enumerate(quantMatrix):
-    print("\t".join(['%.2f' % x for x in quantMatrix[i]]) + '\tcombinedPEP=' + '%.2g' % quantRows[i].combinedPEP)
-  print("")
-
 def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   params['proteinQuantCandidates'] = np.arange(-5.0, 5.0 + 1e-10, 0.01) # log10 of protein ratio
   params['sigmaCandidates'] = np.arange(0.01, 1.0, 0.01)
+  qc = params['proteinQuantCandidates']
+  params['proteinDiffCandidates'] = np.linspace(2*qc[0], 2*qc[-1], len(qc)*2-1)
   
   protQuantRows = parsers.filterAndGroupPeptides(peptQuantRows, lambda x : not x.protein[0].startswith(params['decoyPattern']))
   
@@ -64,12 +61,15 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     
   fitDist(imputedDiffs, funcHypsec, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
   
-  fitDist(protDiffs, funcHypsec, "log10(protein diff in group)", ["muProteinDiffs", "sigmaProteinDiffs"], params, plot)
-  fitDist(protStdevsInGroup, lambda x, shape, sigma: gamma.pdf(x, shape, 0.0, sigma), "stdev log10(protein diff in group)", ["shapeProteinStdevs", "scaleProteinStdevs"], params, plot, x = np.arange(-0.1, 1.0, 0.005))
+  fitDist(protDiffs, funcHypsec, "log10(protein diff in group)", ["muInGroupDiffs", "sigmaInGroupDiffs"], params, plot)
+  fitDist(protStdevsInGroup, lambda x, shape, sigma: gamma.pdf(x, shape, 0.0, sigma), "stdev log10(protein diff in group)", ["shapeInGroupStdevs", "scaleInGroupStdevs"], params, plot, x = np.arange(-0.1, 1.0, 0.005))
   
-  qc = params['proteinQuantCandidates']
-  diffCandidates = np.linspace(2*qc[0], 2*qc[-1], len(qc)*2-1)
-  params['priorDiffsVarSigma'] = funcHypsec(diffCandidates, params['muProteinDiffs'], params['sigmaCandidates'][:, np.newaxis])
+  params['proteinPrior'] = funcHypsec(params['proteinQuantCandidates'], params["muProtein"], params["sigmaProtein"])
+  if "shapeInGroupStdevs" in params:
+    params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], params['muInGroupDiffs'], params['sigmaCandidates'][:, np.newaxis])
+  else:
+    params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], params['muInGroupDiffs'], params['sigmaInGroupDiffs'])
+  
   #fitDist(protGroupDiffs, funcHypsec, "log10(protein diff between groups)", ["muProteinGroupDiffs", "sigmaProteinGroupDiffs"], params, plot)
   
 def fitLogitNormal(observedValues, params, plot):

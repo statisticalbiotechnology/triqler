@@ -46,7 +46,7 @@ def getQuantGroups(quantRow, groups, transform = np.log2):
   return args
 
 def getRunIds(params):
-  return [parsers.getGroupLabel(idx, params['groups'], params['groupLabels']) + ":" + x.split("/")[-1] for idx, x in enumerate(params['fileList'])]
+  return [getGroupLabel(idx, params['groups'], params['groupLabels']) + ":" + x.split("/")[-1] for idx, x in enumerate(params['fileList'])]
 
 ############################
 ## Feature cluster files  ##

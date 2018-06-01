@@ -1,0 +1,4 @@
+1. do test on example data: ./run_test.sh
+2. create wheel: python setup.py sdist bdist_wheel
+3. do upload to testPyPi: twine upload -r test dist/triqler-<version>*
+4. do upload to PyPi: twine upload -r pypi dist/triqler-<version>*

@@ -2,7 +2,7 @@ from __future__ import print_function
 
 """triqler.triqler: provides entry point main()."""
 
-__version__ = "1.0.1"
+__version__ = "0.1.0"
 
 import sys
 import random
@@ -11,6 +11,7 @@ import getopt
 import itertools
 import copy
 import csv
+import multiprocessing
 
 import numpy as np
 
@@ -43,7 +44,7 @@ def parseArgs():
                              suffixes will be added before the file extension.
                           ''')
   
-  apars.add_argument('--fold_change_eval', type=float, default=1.0, metavar='FC',
+  apars.add_argument('--fold_change_eval', type=float, default=1.0, metavar='F',
                      help='log2 fold change evaluation threshold.')
                      
   apars.add_argument('--decoy_pattern', default = "decoy_", metavar='P', 
@@ -51,6 +52,10 @@ def parseArgs():
                      
   apars.add_argument('--min_samples', type=int, default=1, metavar='N', 
                      help='Minimum number of samples a peptide needed to be quantified in.')
+  # Peptides quantified in less than the minimum number will be discarded
+  
+  apars.add_argument('--num_threads', type=int, default=multiprocessing.cpu_count(), metavar='N', 
+                     help='Number of threads, by default this is equal to the number of CPU cores available on the device.')
   # Peptides quantified in less than the minimum number will be discarded
   
   apars.add_argument('--ttest',
@@ -65,6 +70,7 @@ def parseArgs():
   params['t-test'] = args.ttest
   params['minSamples'] = args.min_samples
   params['decoyPattern'] = args.decoy_pattern
+  params['numThreads'] = args.num_threads
   
   return args, params
   
@@ -109,7 +115,10 @@ def getPeptQuantRowMap(triqlerInputFile, decoyPattern):
       else:
         targetScores.append(trqRow.searchScore)
       seenSpectra.add(trqRow.spectrumId)
-    
+  
+  if len(decoyScores) == 0:
+    sys.exit("ERROR: No decoy hits found, check if the correct decoy prefix was specified with the --decoy_pattern flag")
+  
   targetScores = sorted(targetScores, reverse = True)
   decoyScores = sorted(decoyScores, reverse = True)
   _, peps = qvality.getQvaluesFromScores(targetScores, decoyScores, includePEPs = True, includeDecoys = True, tdcInput = True)
@@ -121,7 +130,7 @@ def getPeptQuantRowMap(triqlerInputFile, decoyPattern):
   fileList, groupLabels, groups = getFilesAndGroups(runCondPairs)
   
   if len(groups) < 2:
-    sys.exit("At least two treatment groups should be specified")
+    sys.exit("ERROR: At least two treatment groups should be specified")
     
   return peptQuantRowMap, getPEPFromScore, fileList, groupLabels, groups
 
@@ -287,7 +296,7 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
   seenProteins = set()
   
   print("Calculating protein quants")
-  processingPool = pool.MyPool(4)
+  processingPool = pool.MyPool(params['numThreads'])
   pickedProteinOutputRowsNew = list()
   for linkPEP, protein, quantRows, evalFeatures, numPeptides in pickedProteinOutputRows:
     evalProtein = protein.replace(params['decoyPattern'], "", 1)
@@ -302,16 +311,18 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
         targetScores.append(score)
       pickedProteinOutputRowsNew.append([linkPEP, protein, quantRows, evalFeatures, numPeptides])
       processingPool.applyAsync(pgm.getPosteriors, [quantRows, params])
+      #pgm.getPosteriors(quantRows, params) # for debug mode
   posteriors = processingPool.checkPool(printProgressEvery = 50)
   
   _, peps = qvality.getQvaluesFromScores(targetScores, decoyScores, includePEPs = True, includeDecoys = True, tdcInput = True)
   
   proteinOutputRowsUpdatedPEP = list()
   sumPEP = 0.0
-  for (linkPEP, protein, quantRows, evalFeatures, numPeptides), (bayesQuantRow, mus, sigmas, probsBelowFoldChange), proteinPEP in zip(pickedProteinOutputRowsNew, posteriors, peps):
+  for (linkPEP, protein, quantRows, evalFeatures, numPeptides), (bayesQuantRow, muGroupDiffs, probsBelowFoldChange), proteinPEP in zip(pickedProteinOutputRowsNew, posteriors, peps):
     evalFeatures = getEvalFeatures(bayesQuantRow)
     if not params['t-test']:
       evalFeatures[-1] = probsBelowFoldChange
+      evalFeatures[-2] = muGroupDiffs
     
     if not params['t-test'] or sumPEP / (len(proteinOutputRowsUpdatedPEP) + 1) < 0.05:
       proteinOutputRowsUpdatedPEP.append([linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow])

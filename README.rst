@@ -103,6 +103,8 @@ Some remarks:
   to the target database.
 - The intensities should **not** be log transformed, Triqler will do this 
   transformation for you.
+- The search engine scores should be such that higher scores indicate a higher
+  confidence in the PSM.
 - We recommend usage of well calibrated search engine scores, e.g. the
   SVM scores from Percolator.
 - Multiple proteins can be specified at the end of the line, separated by tabs. 
@@ -117,8 +119,6 @@ by one protein per line in the following format:
 
 Some remarks:
 
-- The search engine scores should be such that higher scores indicate a higher
-  confidence in the PSM.
 - The reported protein expressions are the expected value of the protein's
   expression in the run. They are calculated relative to the protein's mean 
   expression and are **not** log transformed.

@@ -14,8 +14,7 @@ from scipy.optimize import curve_fit
 from . import parsers
 
 def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
-  params['proteinQuantCandidates'] = np.arange(-5.0, 5.0 + 1e-10, 0.01) # log10 of protein ratio
-  params['sigmaCandidates'] = np.arange(0.01, 1.0, 0.01)
+  params['proteinQuantCandidates'] = np.arange(-5.0, 5.0 + 1e-10, 0.01) # log10 of protein ratio  
   qc = params['proteinQuantCandidates']
   params['proteinDiffCandidates'] = np.linspace(2*qc[0], 2*qc[-1], len(qc)*2-1)
   
@@ -61,13 +60,18 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     
   fitDist(imputedDiffs, funcHypsec, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
   
-  fitDist(protDiffs, funcHypsec, "log10(protein diff in group)", ["muInGroupDiffs", "sigmaInGroupDiffs"], params, plot)
   fitDist(protStdevsInGroup, lambda x, shape, sigma: gamma.pdf(x, shape, 0.0, sigma), "stdev log10(protein diff in group)", ["shapeInGroupStdevs", "scaleInGroupStdevs"], params, plot, x = np.arange(-0.1, 1.0, 0.005))
+  
+  sigmaCandidates = np.arange(0.001, 3.0, 0.001)
+  gammaCandidates = gamma.pdf(sigmaCandidates, params["shapeInGroupStdevs"], 0.0, params["scaleInGroupStdevs"])
+  support = np.where(gammaCandidates > max(gammaCandidates) * 0.01)
+  params['sigmaCandidates'] = np.linspace(sigmaCandidates[support[0][0]], sigmaCandidates[support[0][-1]], 20)
   
   params['proteinPrior'] = funcHypsec(params['proteinQuantCandidates'], params["muProtein"], params["sigmaProtein"])
   if "shapeInGroupStdevs" in params:
-    params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], params['muInGroupDiffs'], params['sigmaCandidates'][:, np.newaxis])
-  else:
+    params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], 0, params['sigmaCandidates'][:, np.newaxis])
+  else: # if we have technical replicates, we could use a delta function for the group scaling parameter to speed things up
+    fitDist(protDiffs, funcHypsec, "log10(protein diff in group)", ["muInGroupDiffs", "sigmaInGroupDiffs"], params, plot)
     params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], params['muInGroupDiffs'], params['sigmaInGroupDiffs'])
   
   #fitDist(protGroupDiffs, funcHypsec, "log10(protein diff between groups)", ["muProteinGroupDiffs", "sigmaProteinGroupDiffs"], params, plot)

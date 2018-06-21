@@ -1,4 +1,9 @@
 1. do test on example data: ./run_test.sh
-2. create wheel: python setup.py sdist bdist_wheel
-3. do upload to testPyPi: twine upload -r test dist/triqler-<version>*
-4. do upload to PyPi: twine upload -r pypi dist/triqler-<version>*
+2. update version number in triqler/triqler.py
+3. create wheel: python setup.py sdist bdist_wheel
+4. add information to changelog on master
+5. commit and push to master on github
+6. create a release on github and upload binaries, use the tag naming convention rel-<major>-<minor>-<patch>, e.g. rel-0-01-1
+7. create a branch on github with the version number
+8. do upload to testPyPi: twine upload -r test dist/triqler-<version>*
+9. do upload to PyPi: twine upload -r pypi dist/triqler-<version>*

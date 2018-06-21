@@ -2,7 +2,7 @@ from __future__ import print_function
 
 """triqler.triqler: provides entry point main()."""
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 import sys
 import random
@@ -12,6 +12,7 @@ import itertools
 import copy
 import csv
 import multiprocessing
+import warnings
 
 import numpy as np
 
@@ -25,7 +26,9 @@ from . import diff_exp
 def main():
   args, params = parseArgs()
   
-  runTriqler(params, args.in_file, args.out_file)
+  with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    runTriqler(params, args.in_file, args.out_file)
 
 def parseArgs():
   import argparse

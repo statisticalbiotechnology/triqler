@@ -44,7 +44,10 @@ def getPosteriorProteinRatios(quantMatrix, quantRows, params, maxIterations = 50
 def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   numSamples = len(quantMatrix[0])
   
-  featDiffs = np.log10(quantMatrix) - np.log10([parsers.geomAvg(row) for row in quantMatrix])[:,np.newaxis]
+  logGeoAvgs = np.log10([parsers.geomAvg(row) for row in quantMatrix])
+  featDiffs = np.log10(quantMatrix) - logGeoAvgs[:,np.newaxis]
+  pMissingGeomAvg = pMissing(logGeoAvgs, params["muDetect"], params["sigmaDetect"])
+  
   pQuantIncorrectId = hyperparameters.funcHypsec(featDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | t_grn = 1)
   #pQuantIncorrectIdOld = hyperparameters.funcLogitNormal(np.log10(quantMatrix), params["muDetect"], params["sigmaDetect"], params["muXIC"], params["sigmaXIC"]) 
   
@@ -55,16 +58,17 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   pProteinQuantsList, bayesQuantRow = list(), list()
   for j in range(numSamples):    
     pProteinQuant = np.log(params['proteinPrior']) # log likelihood
+    #pProteinQuant = np.zeros(len(params['proteinPrior']))
     
     for i, row in enumerate(quantMatrix):
       linkPEP = quantRows[i].linkPEP[j]
       if linkPEP < 1.0:
         pMissings = pMissing(xImpsAll[i,j,:], params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | m_grn = 1, t_grn = 0)
         if np.isnan(row[j]):
-          pMissingIncorrectId = pMissing(np.log10(parsers.geomAvg(row)), params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | t_grn = 1)
+          pMissingIncorrectId = pMissingGeomAvg[i] # Pr(f_grn = NaN | t_grn = 1)
           likelihood = pMissings * (1.0 - linkPEP) + pMissingIncorrectId * linkPEP
         else:
-          likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - linkPEP) + pQuantIncorrectId[i][j] * linkPEP
+          likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - linkPEP) + (1.0 - pMissingGeomAvg[i]) * pQuantIncorrectId[i][j] * linkPEP
         pProteinQuant += np.log(likelihood)
     pProteinQuant = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
     
@@ -91,24 +95,18 @@ def pMissing(x, muLogit, sigmaLogit):
 def getPosteriorProteinGroupRatios(pProteinQuantsList, bayesQuantRow, params):
   numGroups = len(params["groups"])
   
-  if "shapeInGroupStdevs" in params:
-    args = parsers.getQuantGroups(bayesQuantRow, params["groups"], np.log10)
-    muProteinGroup = [np.mean(x) for x in args]
-  
   pProteinGroupQuants = list()
   for groupId in range(numGroups):
     filteredProteinQuantsList = np.array([x for j, x in enumerate(pProteinQuantsList) if j in params['groups'][groupId]])
     if "shapeInGroupStdevs" in params:
-      pSigma = getPosteriorProteinGroupSigma(muProteinGroup[groupId], filteredProteinQuantsList, params)
-      pDiffPrior = np.squeeze(np.dot(params['inGroupDiffPrior'].T, pSigma[:, np.newaxis]))
+      pMu = getPosteriorProteinGroupMuMarginalized(filteredProteinQuantsList, params)
     else:
-      pDiffPrior = params['inGroupDiffPrior']
-    
-    pProteinGroupQuants.append(getPosteriorProteinGroupMu(pDiffPrior, groupId, filteredProteinQuantsList, params))
+      pMu = getPosteriorProteinGroupMu(params['inGroupDiffPrior'], filteredProteinQuantsList, params)
+    pProteinGroupQuants.append(pMu)
   
   return pProteinGroupQuants
   
-def getPosteriorProteinGroupMu(pDiffPrior, groupId, pProteinQuantsList, params):
+def getPosteriorProteinGroupMu(pDiffPrior, pProteinQuantsList, params):
   pMus = np.zeros_like(params['proteinQuantCandidates'])
   for pProteinQuants in pProteinQuantsList:
     pMus += np.log(np.convolve(pDiffPrior, pProteinQuants, mode = 'valid'))
@@ -118,16 +116,18 @@ def getPosteriorProteinGroupMu(pDiffPrior, groupId, pProteinQuantsList, params):
   pMus = np.exp(pMus) / np.sum(np.exp(pMus))
   return pMus
 
-def getPosteriorProteinGroupSigma(muProteinGroup, pProteinQuantsList, params):
-  pGroupQuants = hyperparameters.funcNorm(params['proteinQuantCandidates'], muProteinGroup, params['sigmaCandidates'][:,np.newaxis])
-  pProteinQuantPriors = np.dot(pProteinQuantsList, pGroupQuants.T)
+def getPosteriorProteinGroupMuMarginalized(pProteinQuantsList, params):
+  pMus = np.zeros((len(params['sigmaCandidates']), len(params['proteinQuantCandidates'])))
+  for pProteinQuants in pProteinQuantsList:
+    for idx, pDiffPrior in enumerate(params['inGroupDiffPrior']):
+      pMus[idx,:] += np.log(np.convolve(pDiffPrior, pProteinQuants, mode = 'valid'))
   
-  pSigmas = np.log(gamma.pdf(params['sigmaCandidates'], params["shapeInGroupStdevs"], 0.0, params["scaleInGroupStdevs"])) # prior
-  for pProteinQuants in pProteinQuantPriors:
-    pSigmas += np.log(pProteinQuants)
-  pSigmas = np.exp(pSigmas) / np.sum(np.exp(pSigmas))
+  pSigmas = gamma.pdf(params['sigmaCandidates'], params["shapeInGroupStdevs"], 0.0, params["scaleInGroupStdevs"]) # prior
+  pMus = np.log(np.dot(pSigmas, np.exp(pMus)))
   
-  return pSigmas
+  pMus = np.exp(pMus) / np.sum(np.exp(pMus))
+  
+  return pMus
   
 def getProteinGroupsDiffPosteriors(pProteinGroupQuants, params):
   numGroups = len(params['groups'])  

@@ -16,23 +16,60 @@ scaleAlpha = 1
 stepEpsilon = 1e-8
 gRange = 35.0
 weightSlope = 1e1
+numLambda = 100
+maxLambda = 0.5
 VERB = 3
 
-def getQvaluesFromScoresPyImpl(targetScores, decoyScores, includePEPs = False, includeDecoys = False, tdcInput = False):
+def getQvaluesFromScores(targetScores, decoyScores, includePEPs = False, includeDecoys = False, tdcInput = False, pi0 = 1.0):
   combined = list(map(lambda x : (x, True), targetScores)) + list(map(lambda x : (x, False), decoyScores))
   np.random.shuffle(combined) # shuffle all scores so that target and decoy hits with identical scores are in a random order later
   combined = sorted(combined, reverse = True)
   
   medians, negatives, sizes = binData(combined)
+  
   medians, negatives, sizes = np.array(medians[::-1]), np.array(negatives[::-1]), np.array(sizes[::-1])
   if VERB > 3:
     print(np.array(medians), np.array(negatives), np.array(sizes))
   
   variables = roughnessPenaltyIRLS(medians, negatives, sizes)
   
-  probs = np.minimum(1.0, np.exp(list(map(lambda score : splineEval(score, medians, variables), [x[0] for x in combined]))))
+  if includeDecoys:
+    evalScores = [x[0] for x in combined]
+  else:
+    evalScores = sorted(targetScores, reverse = True)
+  
+  if pi0 < 1.0:
+    factor = pi0 * float(len(targetScores)) / len(decoyScores)
+  else:
+    factor = 1.0
+  
+  probs = factor * np.exp(list(map(lambda score : splineEval(score, medians, variables), evalScores)))
+  probs = monotonize(probs)
   return None, probs
 
+def getQvaluesFromPvalues(pvalues, includePEPs = False):
+  targetScores = sorted(pvalues)
+  pi0 = estimatePi0(targetScores)
+  if VERB > 2:
+    print("Estimating pi0 = %f" % pi0)
+  
+  step = 1.0 / 2.0 / len(pvalues)
+  decoyScores = np.arange(step, 1 - step + 1e-10, step*2)
+
+  targetScores = pvaluesToScores(targetScores)
+  decoyScores = pvaluesToScores(decoyScores)
+  return getQvaluesFromScores(targetScores, decoyScores, includePEPs, includeDecoys = False, pi0 = pi0)
+
+def pvaluesToScores(pvalues):
+  return list(map(lambda x : -1*np.log(x / (1 - x)), pvalues))
+  
+def monotonize(peps):
+  newPeps = [0] * (len(peps)+1)
+  if len(peps) > 0:
+    for i, pep in enumerate(peps):
+      newPeps[i+1] = min(1.0, max(newPeps[i], pep))
+  return newPeps[1:]
+  
 def binData(combined, numBins = 500):
   binEdges = list(map(lambda x : int(np.floor(x)), np.linspace(0, len(combined), numBins+1)))
   bins = [combined[startIdx:endIdx] for startIdx, endIdx in zip(binEdges[:-1], binEdges[1:]) if startIdx < endIdx]
@@ -41,12 +78,13 @@ def binData(combined, numBins = 500):
   for b in bins:
     m = np.median([x[0] for x in b])
     numNegs = np.sum(1 for x in b if not x[1])
+    numTot = len(b)
     if m != prevMedian:
-      results.append([m, numNegs, len(b)])
+      results.append([m, numNegs, numTot])
       prevMedian = m
     else:
       results[-1][1] += numNegs
-      results[-1][2] += len(b)
+      results[-1][2] += numTot
   return zip(*results)
 
 def roughnessPenaltyIRLS(medians, negatives, sizes):
@@ -92,11 +130,11 @@ def alphaLinearSearchBA(min_p, max_p, p1, p2, cv1, cv2, medians, negatives, size
       print("New point with alpha=", -scaleAlpha*np.log(p1), ", giving slopeScore=", cv1)
   if (oldCV - min(cv1, cv2)) / oldCV < 1e-5 or abs(p2 - p1) < 1e-10:
     return -scaleAlpha*np.log(p1) if cv1 < cv2 else -scaleAlpha*np.log(p2)
-  return alphaLinearSearchBA(min_p, max_p, p1, p2, cv1, cv2, medians, negatives, sizes)
+  return alphaLinearSearchBA(min_p, max_p, p1, p2, cv1, cv2, medians, negatives, sizes, variables)
 
 def evaluateSlope(medians, negatives, sizes, variables, alpha):
   # Calculate a spline for current alpha
-  iterativeReweightedLeastSquares(medians, negatives, sizes, variables, alpha)
+  variables = iterativeReweightedLeastSquares(medians, negatives, sizes, variables, alpha)
   
   _, _, g, _, _, _, _, _ = variables
   
@@ -123,7 +161,7 @@ def evaluateSlope(medians, negatives, sizes, variables, alpha):
   
   return maxSlope * weightSlope + alpha
 
-def iterativeReweightedLeastSquares(medians, negatives, sizes, variables, alpha, epsilon = 1e-15, tolerance = 0.001, maxiter = 20):
+def iterativeReweightedLeastSquares(medians, negatives, sizes, variables, alpha, epsilon = 1e-8, tolerance = 0.001, maxiter = 50):
   Q, R, g, w, z, gamma, p, gnew = variables
   for it in range(maxiter):
     g = gnew
@@ -134,7 +172,7 @@ def iterativeReweightedLeastSquares(medians, negatives, sizes, variables, alpha,
     gnew = z - aWiQ.dot(gamma)
     gnew = np.minimum(gRange, np.maximum(-1*gRange, gnew))
     difference = g - gnew
-    step = np.linalg.norm(difference) * 1.0 / np.sqrt(len(medians))
+    step = np.linalg.norm(difference) / len(medians)
     if VERB > 3:
       print("Step size:", step)
     if step < stepEpsilon:
@@ -203,7 +241,43 @@ def splineEval(score, medians, variables):
     gx = g[0] - (medians[0] - score) * derr
     return gx
 
-def getQvalues(pvalues, includePEPs = False):
+def estimatePi0(pvalues, numBoot = 100):
+  pvalues = np.array(pvalues)
+  lambdas, pi0s = list(), list()
+  numPvals = len(pvalues)
+  
+  for lambdaIdx in range(numLambda + 1):
+    l = ((lambdaIdx + 1.0) /  numLambda) * maxLambda
+    startIdx = np.searchsorted(pvalues, l)
+    Wl = numPvals - startIdx
+    pi0 = Wl / (1.0 - l) / numPvals
+    if pi0 > 0.0:
+      lambdas.append(l)
+      pi0s.append(pi0)
+  
+  if len(pi0s) == 0:
+    print("Error in the input data: too good separation between target and decoy PSMs.\nImpossible to estimate pi0, setting pi0 = 1")
+    return 1.0
+  
+  minPi0 = min(pi0s)
+  
+  mse = [0.0] * len(pi0s)
+  # Examine which lambda level is most stable under bootstrap
+  for boot in range(numBoot):
+    pBoot = bootstrap(pvalues)
+    n = len(pBoot)
+    for idx, l in enumerate(lambdas):
+      startIdx = np.searchsorted(pvalues, l)
+      Wl = numPvals - startIdx
+      pi0Boot = Wl / n / (1 - l)
+      # Estimated mean-squared error.
+      mse[idx] += (pi0Boot - minPi0) * (pi0Boot - minPi0)
+  return max([min([pi0s[np.argmin(mse)], 1.0]), 0.0])
+
+def bootstrap(allVals, maxSize = 1000):
+  return sorted(np.random.choice(allVals, min([len(allVals), maxSize]), replace = False))
+  
+def getQvaluesFromPvaluesQvality(pvalues, includePEPs = False):
   fdp, pvalFile = tempfile.mkstemp()
   with open(pvalFile, 'w') as w:
     for pval in pvalues:
@@ -222,8 +296,8 @@ def getQvalues(pvalues, includePEPs = False):
     return qvals, peps
   else:
     return qvals
-
-def getQvaluesFromScores(targetScores, decoyScores, includePEPs = False, includeDecoys = False, tdcInput = False):
+    
+def getQvaluesFromScoresQvality(targetScores, decoyScores, includePEPs = False, includeDecoys = False, tdcInput = False):
   fdp, targetFile = tempfile.mkstemp()
   with open(targetFile, 'w') as w:
     for s in targetScores:
@@ -240,7 +314,7 @@ def getQvaluesFromScores(targetScores, decoyScores, includePEPs = False, include
   else:
     tdcInputFlag = ""
   
-  rc = subprocess.call("qvality %s %s %s > %s" % (tdcInputFlag, targetFile, decoyFile, qvalFile), shell=True)
+  rc = subprocess.call("qvality %s %s %s -v %d > %s" % (tdcInputFlag, targetFile, decoyFile, VERB, qvalFile), shell=True)
   if includePEPs:
     qvals, peps = parseQvalues(qvalFile, includePEPs = includePEPs)
   else:
@@ -281,19 +355,19 @@ def parseQvalues(qvalFile, includePEPs = False):
   else:
     return qvals
     
-def unitTest():
+def unitTestScoreInput():
   import scipy.stats
   import matplotlib.pyplot as plt
 
-  for s in range(1):
+  for s in range(3,4):
     np.random.seed(s)
     N = 5000
     #targetScores = np.round(np.random.normal(2.0,1,N) + np.random.normal(0.0,1,N), 1)
     #decoyScores = np.round(np.random.normal(0.0,1,N), 1)
     targetScores = np.random.normal(2.0,1,N) + np.random.normal(0.0,1,N)
     decoyScores = np.random.normal(0.0,1,N)
-    _, peps1 = getQvaluesFromScoresPyImpl(targetScores, decoyScores)
-    _, peps2 = getQvaluesFromScores(targetScores, decoyScores, includePEPs = True, includeDecoys = True, tdcInput = True)
+    _, peps1 = getQvaluesFromScores(targetScores, decoyScores, includePEPs = True, includeDecoys = True, tdcInput = True)
+    _, peps2 = getQvaluesFromScoresQvality(targetScores, decoyScores, includePEPs = True, includeDecoys = True, tdcInput = True)
     
     sortedScores = sorted(targetScores + decoyScores, reverse = True)
     plt.figure(s+1)
@@ -303,4 +377,25 @@ def unitTest():
     plt.legend()
   plt.show()
 
-#unitTest()
+def unitTestPvalInput():
+  import scipy.stats
+  import matplotlib.pyplot as plt
+  
+  for s in range(3,4):
+    np.random.seed(s)
+    N = 5000
+    targetScores = np.round(np.concatenate((np.random.uniform(0,1,N), scipy.stats.truncnorm.rvs(0.0,1,loc=0,scale=0.5,size=N))), 8)
+    _, peps1 = getQvaluesFromPvalues(targetScores, includePEPs = True)
+    _, peps2 = getQvaluesFromPvaluesQvality(targetScores, includePEPs = True)
+    
+    plt.figure(s+1)
+    targetScores = sorted(targetScores)
+    plt.plot(scipy.stats.uniform.pdf(targetScores, 0,1) / (scipy.stats.truncnorm.pdf(targetScores, 0.0,1,loc=0,scale=0.5) + scipy.stats.uniform.pdf(targetScores, 0,1)), label = 'Ground truth')
+    plt.plot(peps1, label = 'Python')
+    plt.plot(peps2, label = 'C++')
+    plt.legend()
+  plt.show()
+
+if __name__ == "__main__":
+  unitTestScoreInput()
+  unitTestPvalInput()

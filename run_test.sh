@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# to replace the reference results execute the following line:
+#   rename -f 's/iPRG2016./iPRG2016_ref./g' example/iPRG2016.p*; mv example/iPRG2016.tsv.pqr.tsv example/iPRG2016_ref.tsv.pqr.tsv
+
 python -m triqler --fold_change_eval 0.8 --out example/iPRG2016.proteins.tsv example/iPRG2016.tsv
 if [[ $? -eq 0 ]]; then
   echo "Test succeeded"

@@ -1,0 +1,6 @@
+v0.01.1
+* Fixed dependency on qvality (#1)
+* Changed to (slightly slower) 2D integration for in-group variance latent variable.
+
+v0.01.0
+* Initial release

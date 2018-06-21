@@ -136,7 +136,7 @@ def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params):
     targetPvalues = list()
     for i, (_, _, _, _, evalFeatures, _, _, _) in enumerate(proteinOutputRows):
       targetPvalues.append(evalFeatures[-1])
-    reportedQvalsPval, reportedPEPsPval = qvality.getQvalues(targetPvalues, includePEPs = True)
+    reportedQvalsPval, reportedPEPsPval = qvality.getQvaluesFromPvalues(targetPvalues, includePEPs = True)
   
   nextScores = [x[0] for x in proteinOutputRows] + [np.nan]
   for i, (combinedPEP, _, protein, quantRows, evalFeatures, numPeptides, proteinIdPEP, quants) in enumerate(proteinOutputRows):

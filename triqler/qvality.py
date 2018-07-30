@@ -16,9 +16,12 @@ scaleAlpha = 1
 stepEpsilon = 1e-8
 gRange = 35.0
 weightSlope = 1e1
+
+VERB = 3
+
+# pi0 estimation parameters
 numLambda = 100
 maxLambda = 0.5
-VERB = 3
 
 def getQvaluesFromScores(targetScores, decoyScores, includePEPs = False, includeDecoys = False, tdcInput = False, pi0 = 1.0):
   combined = list(map(lambda x : (x, True), targetScores)) + list(map(lambda x : (x, False), decoyScores))

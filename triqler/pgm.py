@@ -46,7 +46,7 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   
   logGeoAvgs = np.log10([parsers.geomAvg(row) for row in quantMatrix])
   featDiffs = np.log10(quantMatrix) - logGeoAvgs[:,np.newaxis]
-  pMissingGeomAvg = pMissing(logGeoAvgs, params["muDetect"], params["sigmaDetect"])
+  pMissingGeomAvg = pMissing(logGeoAvgs, params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | t_grn = 1)
   
   pQuantIncorrectId = hyperparameters.funcHypsec(featDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | t_grn = 1)
   #pQuantIncorrectIdOld = hyperparameters.funcLogitNormal(np.log10(quantMatrix), params["muDetect"], params["sigmaDetect"], params["muXIC"], params["sigmaXIC"]) 
@@ -62,13 +62,13 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
     
     for i, row in enumerate(quantMatrix):
       linkPEP = quantRows[i].linkPEP[j]
-      if linkPEP < 1.0:
+      identPEP = quantRows[i].identificationPEP[j]
+      if identPEP < 1.0:
         pMissings = pMissing(xImpsAll[i,j,:], params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | m_grn = 1, t_grn = 0)
         if np.isnan(row[j]):
-          pMissingIncorrectId = pMissingGeomAvg[i] # Pr(f_grn = NaN | t_grn = 1)
-          likelihood = pMissings * (1.0 - linkPEP) + pMissingIncorrectId * linkPEP
+          likelihood = pMissings * (1.0 - identPEP) * (1.0 - linkPEP) + pMissingGeomAvg[i] * (identPEP * (1.0 - linkPEP) + linkPEP)
         else:
-          likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - linkPEP) + (1.0 - pMissingGeomAvg[i]) * pQuantIncorrectId[i][j] * linkPEP
+          likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - identPEP) * (1.0 - linkPEP) + (1.0 - pMissingGeomAvg[i]) * (pQuantIncorrectId[i][j] * identPEP * (1.0 - linkPEP) + linkPEP)
         pProteinQuant += np.log(likelihood)
     pProteinQuant = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
     

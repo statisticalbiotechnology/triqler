@@ -1,3 +1,10 @@
+v0.01.2
+* Bumped numpy dependency to 1.12 for numpy.count_nonzero along axis
+* Removed need for cond_idx:cond_name format for condition column
+* Set --min_samples option to 2 instead of 1 and added check for --min_samples >= 2
+* Added filter for entries with 0 or NaN intensity
+* Added run dependent identification PEP for consensus spectra
+
 v0.01.1
 * Fixed dependency on qvality (#1)
 * Changed to (slightly slower) 2D integration for in-group variance latent variable.

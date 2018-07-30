@@ -94,7 +94,7 @@ setup(
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'numpy>=1.10',
+        'numpy>=1.12',
         'scipy>=0.17'],
 
     # List additional groups of dependencies here (e.g. development

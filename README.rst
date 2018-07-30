@@ -8,7 +8,7 @@ Python 2 or 3 installation
 
 Packages needed:
 
-- numpy 1.10+
+- numpy 1.12+
 - scipy 0.17+
 
 Installation via ``pip``
@@ -51,10 +51,10 @@ Usage
     --fold_change_eval F  log2 fold change evaluation threshold. (default: 1.0)
     --decoy_pattern P     Prefix for decoy proteins. (default: decoy_)
     --min_samples N       Minimum number of samples a peptide needed to be
-                          quantified in. (default: 1)
+                          quantified in. (default: 2)
     --num_threads N       Number of threads, by default this is equal to the
                           number of CPU cores available on the device. (default:
-                          8)
+                          auto detect)
     --ttest               Use t-test for evaluating differential expression
                           instead of posterior probabilities. (default: False)
 

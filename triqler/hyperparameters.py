@@ -8,7 +8,7 @@ import os
 import itertools
 
 import numpy as np
-from scipy.stats import hypsecant, gamma, norm, binom
+from scipy.stats import hypsecant, gamma, norm, binom #, cauchy
 from scipy.optimize import curve_fit
 
 from . import parsers
@@ -32,18 +32,18 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     protQuants.extend([np.log10(x) for x in geoAvgQuantRow if not np.isnan(x)])
 
     args = parsers.getQuantGroups(geoAvgQuantRow, params["groups"], np.log10)
-    means = list()
+    #means = list()
     for group in args:
       if np.count_nonzero(~np.isnan(group)) > 1:
         protDiffs.extend(group - np.mean(group))
         protStdevsInGroup.append(np.std(group))
-      if np.count_nonzero(~np.isnan(group)) > 0:
-        means.append(np.mean(group))
+      #if np.count_nonzero(~np.isnan(group)) > 0:
+      #  means.append(np.mean(group))
     
-    if np.count_nonzero(~np.isnan(means)) > 1:
-      for mean in means:  
-        #protGroupDiffs.append(mean - np.mean(means))
-        protGroupDiffs.append(mean)
+    #if np.count_nonzero(~np.isnan(means)) > 1:
+    #  for mean in means:  
+    #    #protGroupDiffs.append(mean - np.mean(means))
+    #    protGroupDiffs.append(mean)
     
     quantMatrixFiltered = np.log10(np.array([x for x, y in zip(quantMatrix, quantRows) if y.combinedPEP < 1.0]))  
     observedXICValues.extend(quantMatrixFiltered[~np.isnan(quantMatrixFiltered)])
@@ -60,14 +60,14 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     
   fitDist(imputedDiffs, funcHypsec, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
   
-  fitDist(protStdevsInGroup, lambda x, shape, sigma: gamma.pdf(x, shape, 0.0, sigma), "stdev log10(protein diff in group)", ["shapeInGroupStdevs", "scaleInGroupStdevs"], params, plot, x = np.arange(-0.1, 1.0, 0.005))
+  fitDist(protStdevsInGroup, funcGamma, "stdev log10(protein diff in group)", ["shapeInGroupStdevs", "scaleInGroupStdevs"], params, plot, x = np.arange(-0.1, 1.0, 0.005))
   
   sigmaCandidates = np.arange(0.001, 3.0, 0.001)
-  gammaCandidates = gamma.pdf(sigmaCandidates, params["shapeInGroupStdevs"], 0.0, params["scaleInGroupStdevs"])
+  gammaCandidates = funcGamma(sigmaCandidates, params["shapeInGroupStdevs"], params["scaleInGroupStdevs"])
   support = np.where(gammaCandidates > max(gammaCandidates) * 0.01)
   params['sigmaCandidates'] = np.linspace(sigmaCandidates[support[0][0]], sigmaCandidates[support[0][-1]], 20)
   
-  params['proteinPrior'] = funcHypsec(params['proteinQuantCandidates'], params["muProtein"], params["sigmaProtein"])
+  params['proteinPrior'] = funcLogHypsec(params['proteinQuantCandidates'], params["muProtein"], params["sigmaProtein"])
   if "shapeInGroupStdevs" in params:
     params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], 0, params['sigmaCandidates'][:, np.newaxis])
   else: # if we have technical replicates, we could use a delta function for the group scaling parameter to speed things up
@@ -83,7 +83,8 @@ def fitLogitNormal(observedValues, params, plot):
   #minBin, maxBin = -2, 6
   vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), normed = True)
   bins = bins[:-1]
-  popt, pcov = curve_fit(funcLogitNormal, bins, vals, p0 = (m, s, m - s, s))
+  popt, _ = curve_fit(funcLogitNormal, bins, vals, p0 = (m, s, m - s, s))
+  
   #print("params[\"muDetectInit\"], params[\"sigmaDetectInit\"] = %f, %f" % (popt[0], popt[1]))
   print("params[\"muDetect\"], params[\"sigmaDetect\"] = %f, %f" % (popt[0], popt[1]))
   print("params[\"muXIC\"], params[\"sigmaXIC\"] = %f, %f" % (popt[2], popt[3]))
@@ -91,30 +92,44 @@ def fitLogitNormal(observedValues, params, plot):
   params["muDetect"], params["sigmaDetect"] = popt[0], popt[1]
   params["muXIC"], params["sigmaXIC"] = popt[2], popt[3]
   if plot:
+    poptNormal, _ = curve_fit(funcNorm, bins, vals)
+    
     import matplotlib.pyplot as plt
     plt.figure()
-    plt.bar(bins, vals, width = bins[1] - bins[0], alpha = 0.5)
-    plt.plot(bins, norm.pdf(bins, np.mean(observedValues), np.std(observedValues)), label='normal fit')
-    plt.plot(bins, funcLogitNormal(bins, *popt), label='logit-normal fit')
-    plt.plot(bins, 0.5 + 0.5 * np.tanh((np.array(bins) - popt[0]) / popt[1]), label = "detection ratio")
-    plt.plot(bins, norm.pdf(bins, popt[2], popt[3]), label = "underlying distribution")
-    plt.xlabel("log10(intensity)")
+    plt.bar(bins, vals, width = bins[1] - bins[0], alpha = 0.5, label = 'observed distribution')
+    plt.plot(bins, funcLogitNormal(bins, *popt), 'g', label='logit-normal fit', linewidth = 2.0)
+    plt.plot(bins, 0.5 + 0.5 * np.tanh((np.array(bins) - popt[0]) / popt[1]), 'm', label = "logit-part fit", linewidth = 2.0)
+    plt.plot(bins, funcNorm(bins, popt[2], popt[3]), 'c', label = "normal-part fit", linewidth = 2.0)
+    plt.plot(bins, funcNorm(bins, *poptNormal), 'r', label='normal fit', linewidth = 2.0)
+    plt.xlabel("log10(intensity)", fontsize = 18)
     plt.legend()
     
 def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
   vals, bins = np.histogram(ys, bins = x, normed = True)
   bins = bins[:-1]
-  popt, pcov = curve_fit(func, bins, vals)
+  popt, _ = curve_fit(func, bins, vals)
   outputString = ", ".join(["params[\"%s\"]"]*len(popt)) + " = " + ", ".join(["%f"] * len(popt))
   for varName, val in zip(varNames, popt):
     params[varName] = val
+  
+  if func == funcHypsec:
+    fitLabel = "hypsec fit"
+  elif func == funcNorm:
+    fitLabel = "normal fit"
+  elif func == funcGamma:
+    fitLabel = "gamma fit"
+  else:
+    fitLabel = "distribution fit"
   print(outputString % tuple(varNames + list(popt)))
-  if plot:
+  if plot:    
     import matplotlib.pyplot as plt
     plt.figure()
-    plt.bar(bins, vals, width = bins[1] - bins[0])
-    plt.plot(bins, func(bins, *popt), 'g', label='distribution fit')
-    plt.xlabel(xlabel)
+    plt.bar(bins, vals, width = bins[1] - bins[0], label = 'observed distribution')
+    plt.plot(bins, func(bins, *popt), 'g', label=fitLabel, linewidth = 2.0)
+    if func == funcHypsec:
+      poptNormal, _ = curve_fit(funcNorm, bins, vals)
+      plt.plot(bins, funcNorm(bins, *poptNormal), 'r', label = 'normal fit', linewidth = 2.0)
+    plt.xlabel(xlabel, fontsize = 18)
     plt.legend()
 
 # this is an optimized version of applying parsers.weightedGeomAvg to each of the columns separately
@@ -149,7 +164,17 @@ def funcNorm(x, mu, sigma):
   
 def funcHypsec(x, mu, sigma):
   return hypsecant.pdf(x, mu, sigma)
+  #return cauchy.pdf(x, mu, sigma)
+  #return norm.pdf(x, mu, sigma)
 
+def funcLogHypsec(x, mu, sigma):
+  return hypsecant.logpdf(x, mu, sigma)
+  #return cauchy.logpdf(x, mu, sigma)
+  #return norm.logpdf(x, mu, sigma)
+  
+def funcGamma(x, shape, sigma):
+  return gamma.pdf(x, shape, 0.0, sigma)
+  
 def logit(x, muLogit, sigmaLogit):
   return 0.5 + 0.5 * np.tanh((np.array(x) - muLogit) / sigmaLogit)
 

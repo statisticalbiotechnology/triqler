@@ -180,8 +180,8 @@ def selectBestFeaturesPerRunAndSpectrum(peptQuantRowMap, getPEPFromScore, params
     if featureClusterIdx % 10000 == 0:
       print("featureClusterIdx:", featureClusterIdx)
 
-    bestPEP = collections.defaultdict(lambda : [(1.01, None)]*len(params['fileList'])) # peptide => array([linkPEP, precursorCandidate])
-    bestPeptideScore = collections.defaultdict(lambda : (-1e9, -1)) # peptide => (identPEP, spectrumIdx); contains the identification PEPs
+    bestPEP = collections.defaultdict(lambda : [(1.01, None)]*len(params['fileList'])) # reduceKey => array([linkPEP, precursorCandidate])
+    bestPeptideScore = collections.defaultdict(lambda : (-1e9, -1)) # reduceKey => (identPEP, spectrumIdx); contains the identification PEPs
     
     for trqRow in trqRows:
       fileIdx = params['fileList'].index(trqRow.run)
@@ -190,19 +190,19 @@ def selectBestFeaturesPerRunAndSpectrum(peptQuantRowMap, getPEPFromScore, params
       if combinedPEP < bestPEP[rKey][fileIdx][0] or (combinedPEP == bestPEP[rKey][fileIdx][0] and trqRow.intensity > bestPEP[rKey][fileIdx][1].intensity):
         bestPEP[rKey][fileIdx] = (combinedPEP, trqRow)
         if trqRow.searchScore > bestPeptideScore[rKey][0] or np.isnan(trqRow.searchScore):
-          bestPeptideScore[rKey] = (trqRow.searchScore, trqRow.spectrumId)
+          bestPeptideScore[rKey] = (trqRow.searchScore, trqRow.spectrumId, trqRow.peptide)
     
-    for peptide in bestPEP:
-      if sum(1 for x in bestPEP[peptide] if x[0] < 1.01) < params['minSamples']:
+    for rKey in bestPEP:
+      if sum(1 for x in bestPEP[rKey] if x[0] < 1.01) < params['minSamples']:
         continue
       intensities = [0.0]*len(params['fileList'])
       linkPEPs = [1.01]*len(params['fileList'])
       identPEPs = [1.01]*len(params['fileList'])
       peptLinkEP = 1.0
       first = True
-      #svmScore, spectrumId = bestPeptideScore[peptide]
+      #svmScore, spectrumId, peptide = bestPeptideScore[rKey]
       #identPEP = getPEPFromScore(svmScore)
-      for fileIdx, (_, trqRow) in enumerate(bestPEP[peptide]):
+      for fileIdx, (_, trqRow) in enumerate(bestPEP[rKey]):
         if trqRow != None:
           if first:
             charge, proteins, first = trqRow.charge, trqRow.proteins, False
@@ -216,7 +216,7 @@ def selectBestFeaturesPerRunAndSpectrum(peptQuantRowMap, getPEPFromScore, params
       
       minIntensity = min(minIntensity, min([x for x in intensities if x > 0.0]))
       
-      svmScore, spectrumId = bestPeptideScore[peptide]
+      svmScore, spectrumId, peptide = bestPeptideScore[rKey]
       
       # some feature clusters might not have a spectrum associated with them
       if spectrumId == 0:
@@ -278,7 +278,7 @@ def convertToPeptideQuantRows(featureClusterRows, intensityDiv = 1e6):
   print("Converting to peptide quant rows")
   peptideQuantRows = list()
   for intensities, featureClusterIdx, spectrumIdx, linkPEPs, identPEPs, peptide, proteins, svmScore, charge in featureClusterRows:
-    row = parsers.PeptideQuantRow(svmScore, charge, featureClusterIdx, linkPEPs, list(map(lambda x : x/intensityDiv, intensities)), identPEPs, peptide, proteins)
+    row = parsers.PeptideQuantRow(svmScore, charge, featureClusterIdx, spectrumIdx, linkPEPs, list(map(lambda x : x/intensityDiv, intensities)), identPEPs, peptide, proteins)
     peptideQuantRows.append(row)
   return peptideQuantRows
   

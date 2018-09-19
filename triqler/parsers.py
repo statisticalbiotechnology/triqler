@@ -52,7 +52,7 @@ def getRunIds(params):
 ## Feature cluster files  ##
 ############################
 
-PrecursorCandidate = namedtuple("PrecursorCandidate", "fileIdx, fileName precMz charge rTime intensity peptLinkPEPs")
+PrecursorCandidate = namedtuple("PrecursorCandidate", "fileIdx fileName precMz charge rTime intensity peptLinkPEPs")
 
 def parseFeatureClustersFileHandle(reader):
   rows = list()
@@ -123,29 +123,33 @@ def hasLinkPEPs(triqlerInputFile):
 ## Peptide quant row files  ##
 ##############################
 
-PeptideQuantRowHeaders = "combinedPEP charge pseudoPeptide linkPEP quant identificationPEP peptide protein".split(" ")
+PeptideQuantRowHeaders = "combinedPEP charge featureGroup spectrum linkPEP quant identificationPEP peptide protein".split(" ")
 PeptideQuantRowBase = namedtuple("PeptideQuantRow", PeptideQuantRowHeaders)
 
 class PeptideQuantRow(PeptideQuantRowBase):
   def toList(self):
     l = list(self)
-    return l[:3] + list(map(lambda x : '%.5g' % x, l[3])) + list(map(lambda x : '%.2f' % x, l[4])) + list(map(lambda x : '%.5g' % x, l[5])) + l[6:7] + l[7]
+    return l[:4] + list(map(lambda x : '%.5g' % x, l[4])) + list(map(lambda x : '%.2f' % x, l[5])) + list(map(lambda x : '%.5g' % x, l[6])) + l[7:8] + [";".join(map(lambda x : x.replace(";", "_"), l[8]))]
 
   def toString(self):
     return "\t".join(map(str, self.toList()))
 
 def getPeptideQuantRowHeaders(runs):
-  return PeptideQuantRowHeaders[:3] + runs + runs + runs + PeptideQuantRowHeaders[6:]
+  return PeptideQuantRowHeaders[:4] + runs + runs + runs + PeptideQuantRowHeaders[7:]
 
 def parsePeptideQuantFile(peptideQuantFile):
   reader = csv.reader(open(peptideQuantFile, 'r'), delimiter = '\t')
   header = next(reader)
-  numRuns = (header.index("peptide") - header.index("pseudoPeptide") - 1) / 3
+  numRuns = (header.index("peptide") - header.index("spectrum") - 1) / 3
   peptideQuantRows = list()
   for row in reader:
-    peptideQuantRows.append(PeptideQuantRow(float(row[0]), int(row[1]), row[2], list(map(float, row[3:3+numRuns])), list(map(float, row[3+numRuns:3+2*numRuns])), list(map(float, row[3+2*numRuns:3+3*numRuns])), row[3+3*numRuns], row[4+3*numRuns:]))
+    if len(row) > 6+3*numRuns:
+      proteins = row[5+3*numRuns:]
+    else:
+      proteins = row[5+3*numRuns].split(";")
+    peptideQuantRows.append(PeptideQuantRow(float(row[0]), int(row[1]), int(row[2]), int(row[3]), list(map(float, row[4:4+numRuns])), list(map(float, row[4+numRuns:4+2*numRuns])), list(map(float, row[4+2*numRuns:4+3*numRuns])), row[4+3*numRuns], proteins))
 
-  runIdsWithGroup = header[3:3+numRuns]
+  runIdsWithGroup = header[4:4+numRuns]
   maxGroups = max([int(runId.split(":")[0]) for runId in runIdsWithGroup])
   runIds = list()
   groups, groupLabels = [None] * maxGroups, [None] * maxGroups
@@ -169,25 +173,6 @@ def filterAndGroupPeptides(peptQuantRows, peptFilter = lambda x : True):
   peptQuantRows = filter(lambda x : validPqr(x) and peptFilter(x), peptQuantRows)
   protQuantRows = itertools.groupby(sorted(peptQuantRows, key = lambda x : x.protein[0]), key = lambda x : x.protein[0])
   return protQuantRows
-  
-#########################################
-## peptide1;linkPEP1,peptide2;linkPEP2 ##
-#########################################
-
-def parsePeptideLinkPEPs(peptideString):
-  plps = dict()
-  if len(peptideString) > 0:
-    for x in peptideString.split(","):
-      if ";" in x:
-        peptide, linkPEP = x.split(";")
-        linkPEP = float(linkPEP)
-      else:
-        peptide, linkPEP = x, 0.0
-      plps[peptide] = linkPEP
-  return plps
-
-def serializePeptideLinkPEPs(peptideLinkPEPPairs):
-  return ",".join([x + ";" + str(round(y,4)) for x,y in peptideLinkPEPPairs.items()])
 
 ###################################
 ## Quant matrix helper functions ##

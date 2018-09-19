@@ -56,9 +56,8 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   pDiffs = hyperparameters.funcHypsec(impDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | m_grn = 0, t_grn = 0)
   
   pProteinQuantsList, bayesQuantRow = list(), list()
-  for j in range(numSamples):    
-    pProteinQuant = np.log(params['proteinPrior']) # log likelihood
-    #pProteinQuant = np.zeros(len(params['proteinPrior']))
+  for j in range(numSamples):
+    pProteinQuant = params['proteinPrior'].copy() # log likelihood
     
     for i, row in enumerate(quantMatrix):
       linkPEP = quantRows[i].linkPEP[j]
@@ -69,9 +68,13 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
           likelihood = pMissings * (1.0 - identPEP) * (1.0 - linkPEP) + pMissingGeomAvg[i] * (identPEP * (1.0 - linkPEP) + linkPEP)
         else:
           likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - identPEP) * (1.0 - linkPEP) + (1.0 - pMissingGeomAvg[i]) * (pQuantIncorrectId[i][j] * identPEP * (1.0 - linkPEP) + linkPEP)
+        
+        if np.min(likelihood) == 0.0:
+          likelihood += np.nextafter(0,1)
         pProteinQuant += np.log(likelihood)
+      
+    pProteinQuant -= np.max(pProteinQuant)
     pProteinQuant = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
-    
     pProteinQuantsList.append(pProteinQuant)
     
     eValue, confRegion = getPosteriorParams(params['proteinQuantCandidates'], pProteinQuant)
@@ -112,7 +115,7 @@ def getPosteriorProteinGroupMu(pDiffPrior, pProteinQuantsList, params):
     pMus += np.log(np.convolve(pDiffPrior, pProteinQuants, mode = 'valid'))
   
   #pMus = np.nan_to_num(pMus)
-  #pMus -= np.max(pMus)
+  pMus -= np.max(pMus)
   pMus = np.exp(pMus) / np.sum(np.exp(pMus))
   return pMus
 
@@ -122,9 +125,10 @@ def getPosteriorProteinGroupMuMarginalized(pProteinQuantsList, params):
     for idx, pDiffPrior in enumerate(params['inGroupDiffPrior']):
       pMus[idx,:] += np.log(np.convolve(pDiffPrior, pProteinQuants, mode = 'valid'))
   
-  pSigmas = gamma.pdf(params['sigmaCandidates'], params["shapeInGroupStdevs"], 0.0, params["scaleInGroupStdevs"]) # prior
+  pSigmas = hyperparameters.funcGamma(params['sigmaCandidates'], params["shapeInGroupStdevs"], params["scaleInGroupStdevs"]) # prior
   pMus = np.log(np.dot(pSigmas, np.exp(pMus)))
   
+  pMus -= np.max(pMus)
   pMus = np.exp(pMus) / np.sum(np.exp(pMus))
   
   return pMus

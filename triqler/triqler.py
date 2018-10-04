@@ -11,6 +11,7 @@ import copy
 import csv
 import multiprocessing
 import warnings
+import gc
 
 import numpy as np
 
@@ -152,12 +153,13 @@ def getPeptQuantRowMap(triqlerInputFile, decoyPattern):
   
   print("Calculating identification PEPs")
   
-  targetScores = sorted(targetScores, reverse = True)
-  decoyScores = sorted(decoyScores, reverse = True)
+  targetScores = np.array(targetScores)
+  decoyScores = np.array(decoyScores)
   _, peps = qvality.getQvaluesFromScores(targetScores, decoyScores, includePEPs = True, includeDecoys = True, tdcInput = True)
-  peps = peps[::-1]
+  peps = peps[::-1] # PEPs in descending order, highest PEP first
   
-  allScores = np.array(sorted(targetScores + decoyScores))
+  allScores = np.concatenate((targetScores, decoyScores))
+  allScores.sort()  # scores in ascending order, lowest score first
   getPEPFromScore = lambda score : peps[min(np.searchsorted(allScores, score, side = 'left'), len(peps) - 1)] if not np.isnan(score) else 1.0
   
   fileList, groupLabels, groups = getFilesAndGroups(runCondPairs)
@@ -333,34 +335,41 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
   proteinQuantIdPEP = lambda quantRows : np.sum([np.log(x.combinedPEP) for x in quantRows]) # combinedPEP contains the peptide-level PEP
   pickedProteinOutputRows = sorted(pickedProteinOutputRows, key = lambda x : proteinQuantIdPEP(x[2]))
   
-  print("Fitting hyperparameters")
-  hyperparameters.fitPriors(peptQuantRows, params) # updates priors
-  
-  targetScores, decoyScores = list(), list()
-  proteinOutputRows = list()
-  seenProteins = set()
-  
-  print("Calculating protein quants")
-  processingPool = pool.MyPool(params['numThreads'])
+  print("Calculating protein-level identification PEPs")
   pickedProteinOutputRowsNew = list()
+  targetScores, decoyScores = list(), list()
+  seenProteins = set()
   for linkPEP, protein, quantRows, numPeptides in pickedProteinOutputRows:
     evalProtein = protein.replace(params['decoyPattern'], "", 1)
     if evalProtein not in seenProteins:
       seenProteins.add(evalProtein)
       
-      #score = np.log(-1*proteinQuantIdPEP(quantRows)) # performs slightly worse on iPRG2016 set, but might prevent convergence problems in the event of many peptides for a protein
-      score = -1*proteinQuantIdPEP(quantRows)
+      score = np.log(-1*proteinQuantIdPEP(quantRows)) # performs slightly worse on iPRG2016 set, but might prevent convergence problems in the event of many peptides for a protein
+      #score = -1*proteinQuantIdPEP(quantRows)
       if isDecoy([protein], params['decoyPattern']):
         decoyScores.append(score)
       else:
         targetScores.append(score)
       pickedProteinOutputRowsNew.append([linkPEP, protein, quantRows, numPeptides])
-      processingPool.applyAsync(pgm.getPosteriors, [quantRows, params])
-      #pgm.getPosteriors(quantRows, params) # for debug mode
-  posteriors = processingPool.checkPool(printProgressEvery = 50)
   
-  print("Calculating protein-level identification PEPs")
+  targetScores = np.array(targetScores)
+  decoyScores = np.array(decoyScores)
   _, peps = qvality.getQvaluesFromScores(targetScores, decoyScores, includePEPs = True, includeDecoys = True, tdcInput = True)
+    
+  print("Fitting hyperparameters")
+  hyperparameters.fitPriors(peptQuantRows, params) # updates priors
+  
+  print("Calculating protein posteriors")
+  processingPool = pool.MyPool(params['numThreads'])
+  addDummyPosteriors = 0
+  for (linkPEP, protein, quantRows, numPeptides), proteinIdPEP in zip(pickedProteinOutputRowsNew, peps):  
+    if proteinIdPEP < 1.0:
+      processingPool.applyAsync(pgm.getPosteriors, [quantRows, params])
+    else:
+      addDummyPosteriors += 1
+    #pgm.getPosteriors(quantRows, params) # for debug mode
+  posteriors = processingPool.checkPool(printProgressEvery = 50)
+  posteriors.extend([pgm.getDummyPosteriors(params)] * addDummyPosteriors)
   
   proteinOutputRowsUpdatedPEP = list()
   sumPEP = 0.0
@@ -372,11 +381,11 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
     
     if not params['t-test'] or sumPEP / (len(proteinOutputRowsUpdatedPEP) + 1) < 0.05:
       proteinOutputRowsUpdatedPEP.append([linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow])
-      sumPEP += proteinPEP
+    sumPEP += proteinPEP
   
   proteinOutputRowsUpdatedPEP = sorted(proteinOutputRowsUpdatedPEP, key = lambda x : (x[0], x[1]))
   return proteinOutputRowsUpdatedPEP
-
+  
 def selectComparisonBayes(proteinOutputRows, comparisonKey, tTest = False):
   proteinOutputRowsUpdatedPEP = list()
   for (linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow) in proteinOutputRows:
@@ -404,8 +413,8 @@ def updateIdentPEPs(peptideQuantRow, decoyPattern, hasLinkPEPs):
   
   scoreIdxPairs = sorted(scoreIdxPairs, reverse = True)
   scoreIdxs = np.argsort([x[1] for x in scoreIdxPairs])
-  targetScores = [x[0] for x in scoreIdxPairs if x[2] == False]
-  decoyScores = [x[0] for x in scoreIdxPairs if x[2] == True]
+  targetScores = np.array([x[0] for x in scoreIdxPairs if x[2] == False])
+  decoyScores = np.array([x[0] for x in scoreIdxPairs if x[2] == True])
   
   _, identPEPs = qvality.getQvaluesFromScores(targetScores, decoyScores, includePEPs = True, includeDecoys = True, tdcInput = True)
   

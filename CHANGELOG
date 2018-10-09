@@ -1,3 +1,7 @@
+v0.01.3
+* Fixed Windows multiprocessing error (#2)
+* Added spectrum identifier to peptide output
+
 v0.01.2
 * Bumped numpy dependency to 1.12 for numpy.count_nonzero along axis
 * Removed need for cond_idx:cond_name format for condition column

@@ -16,7 +16,7 @@ class MyPool:
     try:
       outputs = list()
       for res in self.results:
-        outputs.append(res.get(0xFFFFFFFF))
+        outputs.append(res.get(True))
         if printProgressEvery > 0 and len(outputs) % printProgressEvery == 0:
           print(len(outputs),"/", len(self.results), "%.2f" % (float(len(outputs)) / len(self.results) * 100) + "%")
       self.pool.close()

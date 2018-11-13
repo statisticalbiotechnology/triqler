@@ -1,13 +1,14 @@
 from __future__ import print_function
 
 import sys
+import signal
 from multiprocessing import Pool
 
 class MyPool:
   def __init__(self, processes=1):
-    self.pool = Pool(processes)
+    self.pool = Pool(processes, init_worker)
     self.results = []
-  
+    
   def applyAsync(self, f, args):
     r = self.pool.apply_async(f, args)
     self.results.append(r)
@@ -16,17 +17,22 @@ class MyPool:
     try:
       outputs = list()
       for res in self.results:
-        outputs.append(res.get(True))
+        outputs.append(res.get(timeout = 1000))
         if printProgressEvery > 0 and len(outputs) % printProgressEvery == 0:
           print(len(outputs),"/", len(self.results), "%.2f" % (float(len(outputs)) / len(self.results) * 100) + "%")
       self.pool.close()
       self.pool.join()
       return outputs
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, SystemExit):
       print("Caught KeyboardInterrupt, terminating workers")
       self.pool.terminate()
       self.pool.join()
       sys.exit()
+
+# causes child processes to ignore SIGINT signal and lets main process handle 
+# interrupts instead (https://noswap.com/blog/python-multiprocessing-keyboardinterrupt)
+def init_worker():
+  signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 def addOne(i):
   return i+1

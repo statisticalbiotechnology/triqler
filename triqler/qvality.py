@@ -152,22 +152,17 @@ def binData2(allScores, decoyScores, numBins = 500):
   startIdx = 0
   for endIdx in binEdges[1:]:
     if startIdx < endIdx:
-      while endIdx < len(allScores) and allScores[endIdx] == allScores[endIdx + 1]:
+      while endIdx < len(allScores) and allScores[endIdx-1] == allScores[endIdx]:
         endIdx += 1
       bins.append(allScores[startIdx:endIdx])
-    startIdx = endIdx
-  prevMedian = None
+      startIdx = endIdx
+  
   results = list()
   for b in bins:
     m = np.median(b)
     numNegs = np.searchsorted(decoyScores, b[-1], side = 'right') - np.searchsorted(decoyScores, b[0], side = 'left')
     numTot = len(b)
-    if m != prevMedian:
-      results.append([m, numNegs, numTot])
-      prevMedian = m
-    else:
-      results[-1][1] += numNegs
-      results[-1][2] += numTot
+    results.append([m, numNegs, numTot])
   return zip(*results)
 
 def roughnessPenaltyIRLS(medians, negatives, sizes):

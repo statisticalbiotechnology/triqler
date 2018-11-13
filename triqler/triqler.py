@@ -189,7 +189,7 @@ def selectBestFeaturesPerRunAndSpectrum(peptQuantRowMap, getPEPFromScore, params
       fileIdx = params['fileList'].index(trqRow.run)
       combinedPEP = combinePEPs(trqRow.linkPEP, getPEPFromScore(trqRow.searchScore))
       rKey = reduceKey(trqRow)
-      if combinedPEP < bestPEP[rKey][fileIdx][0] or (combinedPEP == bestPEP[rKey][fileIdx][0] and trqRow.intensity > bestPEP[rKey][fileIdx][1].intensity):
+      if combinedPEP < 1.0 and combinedPEP < bestPEP[rKey][fileIdx][0] or (combinedPEP == bestPEP[rKey][fileIdx][0] and trqRow.intensity > bestPEP[rKey][fileIdx][1].intensity):
         bestPEP[rKey][fileIdx] = (combinedPEP, trqRow)
         if trqRow.searchScore > bestPeptideScore[rKey][0] or np.isnan(trqRow.searchScore):
           bestPeptideScore[rKey] = (trqRow.searchScore, trqRow.spectrumId, trqRow.peptide)

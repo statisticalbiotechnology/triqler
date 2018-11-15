@@ -2,11 +2,12 @@ from __future__ import print_function
 
 import sys
 import signal
+import warnings
 from multiprocessing import Pool
 
 class MyPool:
-  def __init__(self, processes=1):
-    self.pool = Pool(processes, init_worker)
+  def __init__(self, processes = 1, warningFilter = "default"):
+    self.pool = Pool(processes, lambda : init_worker(warningFilter))
     self.results = []
     
   def applyAsync(self, f, args):
@@ -29,9 +30,13 @@ class MyPool:
       self.pool.join()
       sys.exit()
 
-# causes child processes to ignore SIGINT signal and lets main process handle 
-# interrupts instead (https://noswap.com/blog/python-multiprocessing-keyboardinterrupt)
-def init_worker():
+
+def init_worker(warningFilter):
+  # set warningFilter for the child processes
+  warnings.simplefilter(warningFilter)
+  
+  # causes child processes to ignore SIGINT signal and lets main process handle 
+  # interrupts instead (https://noswap.com/blog/python-multiprocessing-keyboardinterrupt)
   signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 def addOne(i):

@@ -2,7 +2,7 @@ from __future__ import print_function
 
 """triqler.triqler: provides entry point main()."""
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 import sys
 import os
@@ -30,8 +30,9 @@ Royal Institute of Technology in Stockholm.
   ''' % (__version__))
   args, params = parseArgs()
   
+  params['warningFilter'] = "ignore"
   with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
+    warnings.simplefilter(params['warningFilter'])
     runTriqler(params, args.in_file, args.out_file)
 
 def parseArgs():
@@ -76,6 +77,7 @@ def parseArgs():
   args = apars.parse_args()
   
   params = dict()
+  params['warningFilter'] = "default"
   params['foldChangeEval'] = args.fold_change_eval
   params['t-test'] = args.ttest
   params['minSamples'] = args.min_samples
@@ -341,7 +343,7 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
   seenProteins = set()
   
   print("Calculating protein quants")
-  processingPool = pool.MyPool(params['numThreads'])
+  processingPool = pool.MyPool(processes = params['numThreads'], warningFilter = params['warningFilter'])
   pickedProteinOutputRowsNew = list()
   for linkPEP, protein, quantRows, numPeptides in pickedProteinOutputRows:
     evalProtein = protein.replace(params['decoyPattern'], "", 1)

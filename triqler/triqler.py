@@ -72,7 +72,10 @@ def parseArgs():
   apars.add_argument('--write_spectrum_quants',
                      help='Write quantifications for consensus spectra. Only works if consensus spectrum index are given in input.',
                      action='store_true')
-                       
+  
+  apars.add_argument('--returnDistributions',
+                     help='Return posterior distributions for proteins and group.',
+                     default = True)                     
   # ------------------------------------------------
   args = apars.parse_args()
   
@@ -84,6 +87,7 @@ def parseArgs():
   params['decoyPattern'] = args.decoy_pattern
   params['numThreads'] = args.num_threads
   params['writeSpectrumQuants'] = args.write_spectrum_quants
+  params['returnDistributions'] = args.returnDistributions
   
   if params['minSamples'] < 2:
     sys.exit("ERROR: --min_samples should be >= 2")

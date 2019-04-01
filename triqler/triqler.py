@@ -74,9 +74,12 @@ def parseArgs():
                      action='store_true')
 
   apars.add_argument('--raw_intensities',
-                     help='Write quantifications as raw intensities as well as the ordinary output',
-                     action='store_true')
+                    help='Write quantifications as raw intensities as well as the ordinary output',
+                    action='store_true')
 
+  apars.add_argument('--returnDistributions',
+                     help='Return posterior distributions for proteins and group.',
+                     action='store_true')
   # ------------------------------------------------
   args = apars.parse_args()
 
@@ -89,6 +92,7 @@ def parseArgs():
   params['numThreads'] = args.num_threads
   params['writeSpectrumQuants'] = args.write_spectrum_quants
   params['raw_intensities'] = args.raw_intensities
+  params['returnDistributions'] = args.returnDistributions
 
   if params['minSamples'] < 2:
     sys.exit("ERROR: --min_samples should be >= 2")
@@ -362,7 +366,9 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
       else:
         targetScores.append(score)
       pickedProteinOutputRowsNew.append([linkPEP, protein, quantRows, numPeptides])
-      processingPool.applyAsync(pgm.getPosteriors, [quantRows, params])
+      returnDistributions = True # CHANGE
+      processingPool.applyAsync(pgm.getPosteriors, [quantRows, params, returnDistributions])
+      #processingPool.applyAsync(pgm.getPosteriors, [quantRows, params])
       #pgm.getPosteriors(quantRows, params) # for debug mode
   posteriors = processingPool.checkPool(printProgressEvery = 50)
 
@@ -371,14 +377,17 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
 
   proteinOutputRowsUpdatedPEP = list()
   sumPEP = 0.0
-  for (linkPEP, protein, quantRows, numPeptides), (bayesQuantRow, muGroupDiffs, probsBelowFoldChange), proteinPEP in zip(pickedProteinOutputRowsNew, posteriors, peps):
+  for (linkPEP, protein, quantRows, numPeptides), (bayesQuantRow, muGroupDiffs, probsBelowFoldChange, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs), proteinPEP in zip(pickedProteinOutputRowsNew, posteriors, peps):
     evalFeatures = getEvalFeatures(bayesQuantRow)
+
     if not params['t-test']:
       evalFeatures[-1] = probsBelowFoldChange
       evalFeatures[-2] = muGroupDiffs
 
+
     if not params['t-test'] or sumPEP / (len(proteinOutputRowsUpdatedPEP) + 1) < 0.05:
-      proteinOutputRowsUpdatedPEP.append([linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow])
+      #proteinOutputRowsUpdatedPEP.append([linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow])
+      proteinOutputRowsUpdatedPEP.append([linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs])
       sumPEP += proteinPEP
 
   proteinOutputRowsUpdatedPEP = sorted(proteinOutputRowsUpdatedPEP, key = lambda x : (x[0], x[1]))
@@ -386,7 +395,7 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
 
 def selectComparisonBayes(proteinOutputRows, comparisonKey, tTest = False):
   proteinOutputRowsUpdatedPEP = list()
-  for (linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow) in proteinOutputRows:
+  for (linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs) in proteinOutputRows:
     evalFeaturesNew = copy.deepcopy(evalFeatures)
     evalFeaturesNew[-1] = evalFeatures[-1][comparisonKey] # probBelowFoldChange
     evalFeaturesNew[-2] = evalFeatures[-2][comparisonKey] # log2_fold_change
@@ -395,8 +404,8 @@ def selectComparisonBayes(proteinOutputRows, comparisonKey, tTest = False):
     else:
       combinedPEP = evalFeaturesNew[-1]
 
-    proteinOutputRowsUpdatedPEP.append([combinedPEP, linkPEP, protein, quantRows, evalFeaturesNew, numPeptides, proteinPEP, bayesQuantRow])
-
+    #proteinOutputRowsUpdatedPEP.append([combinedPEP, linkPEP, protein, quantRows, evalFeaturesNew, numPeptides, proteinPEP, bayesQuantRow])
+    proteinOutputRowsUpdatedPEP.append([combinedPEP, linkPEP, protein, quantRows, evalFeaturesNew, numPeptides, proteinPEP, bayesQuantRow, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs])
   proteinOutputRowsUpdatedPEP = sorted(proteinOutputRowsUpdatedPEP, key = lambda x : (x[0], x[1]))
   return proteinOutputRowsUpdatedPEP
 

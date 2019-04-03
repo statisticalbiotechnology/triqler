@@ -106,6 +106,8 @@ def fitLogitNormal(observedValues, params, plot):
     
 def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
   vals, bins = np.histogram(ys, bins = x, normed = True)
+  print(vals)
+  print(bins)
   bins = bins[:-1]
   popt, _ = curve_fit(func, bins, vals)
   outputString = ", ".join(["params[\"%s\"]"]*len(popt)) + " = " + ", ".join(["%f"] * len(popt))

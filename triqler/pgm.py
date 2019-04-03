@@ -12,7 +12,9 @@ from . import parsers
 from . import convolution_dp
 from . import hyperparameters
 
-def getPosteriors(quantRowsOrig, params, returnDistributions = False):
+import sys
+
+def getPosteriors(quantRowsOrig, params, returnDistributions = True):
   quantRows, quantMatrix = parsers.getQuantMatrix(quantRowsOrig)
   
   pProteinQuantsList, bayesQuantRow = getPosteriorProteinRatios(quantMatrix, quantRows, params)
@@ -21,16 +23,23 @@ def getPosteriors(quantRowsOrig, params, returnDistributions = False):
   
   probsBelowFoldChange = getProbBelowFoldChangeDict(pProteinGroupDiffs, params)
   if returnDistributions:
+    #print("returnDistributions is TRUE!")
+    #sys.stdout.flush()
     return bayesQuantRow, muGroupDiffs, probsBelowFoldChange, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs
   else:
+    #print("returnDistributions is FALSE!")
+    #sys.stdout.flush()
     return bayesQuantRow, muGroupDiffs, probsBelowFoldChange
 
 def getPosteriorProteinRatios(quantMatrix, quantRows, params, maxIterations = 50, bayesQuantRow = None):
+  #print(len(quantMatrix))
   numSamples = len(quantMatrix[0])
   bayesQuantRow = np.array([1.0]*numSamples)
   for iteration in range(maxIterations):  
     prevBayesQuantRow = np.copy(bayesQuantRow)
     pProteinQuantsList, bayesQuantRow = getPosteriorProteinRatio(quantMatrix, quantRows, bayesQuantRow, params)
+    #print(len(pProteinQuantsList[8]))    
+    #print(pProteinQuantsList)
     
     bayesQuantRow = parsers.geoNormalize(bayesQuantRow)
     

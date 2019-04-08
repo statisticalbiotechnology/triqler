@@ -28,7 +28,7 @@ def doDiffExp(params, peptQuantRows, outputFile, proteinQuantificationMethod, se
         proteinOutputFile = outputFile
       else:
         proteinOutputFile = outputFile.replace(outputFileExt, ".%dvs%d%s" % (groupId1 + 1, groupId2 + 1, outputFileExt if len(outputFileExt) > 1 else ""))
-      print(proteinOutputFile)
+      #print(proteinOutputFile)
       proteinOutputRowsGroup = selectComparison(proteinOutputRows, (groupId1, groupId2))
       if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
         evalFunctions = [lambda protein, evalFeatures : evalTruePositiveTtest(params["trueConcentrationsDict"], protein, groupId1, groupId2, evalFeatures[-2], params)]
@@ -36,7 +36,7 @@ def doDiffExp(params, peptQuantRows, outputFile, proteinQuantificationMethod, se
   
   if False:
     proteinOutputFile = outputFile
-    print(proteinOutputFile)
+    #print(proteinOutputFile)
     proteinOutputRowsGroup = selectComparison(proteinOutputRows, 'ANOVA')
     if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
       evalFunctions = [lambda protein, evalFeatures : evalTruePositiveANOVA(params["trueConcentrationsDict"], protein)]
@@ -122,7 +122,7 @@ def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params, r
   
   if returnDistributions == True:
       writerPosterior = csv.writer(open(outputFile[:-4]+"_posteriorProtein.csv", 'w'), delimiter = '\t') #  
-      writerPosteriorGroup = csv.writer(open(outputFile[:-4]+"_posteriorGroup.csv", "w"), delimiter = "\t") #
+      writerPosteriorGroup = csv.writer(open(outputFile[:-4]+"_posteriorGroupp.csv", "w"), delimiter = "\t") #
   
   plotCalibration = len(evalFunctions) > 0
   if plotCalibration:

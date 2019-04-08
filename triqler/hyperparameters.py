@@ -56,9 +56,13 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   
   fitLogitNormal(observedXICValues, params, plot)
   
-  fitDist(protQuants, funcHypsec, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)
-    
-  fitDist(imputedDiffs, funcHypsec, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
+  fitDist(protQuants, funcGamma, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)
+  
+  #fitDist(protQuants, funcHypsec, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)
+   
+  fitDist(imputedDiffs, funcGamma, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
+  
+  #fitDist(imputedDiffs, funcHypsec, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
   
   fitDist(protStdevsInGroup, funcGamma, "stdev log10(protein diff in group)", ["shapeInGroupStdevs", "scaleInGroupStdevs"], params, plot, x = np.arange(-0.1, 1.0, 0.005))
   
@@ -106,8 +110,8 @@ def fitLogitNormal(observedValues, params, plot):
     
 def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
   vals, bins = np.histogram(ys, bins = x, normed = True)
-  print(vals)
-  print(bins)
+  #print(vals)
+  #print(bins)
   bins = bins[:-1]
   popt, _ = curve_fit(func, bins, vals)
   outputString = ", ".join(["params[\"%s\"]"]*len(popt)) + " = " + ", ".join(["%f"] * len(popt))

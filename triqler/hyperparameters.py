@@ -73,11 +73,16 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   
   params['proteinPrior'] = funcLogHypsec(params['proteinQuantCandidates'], params["muProtein"], params["sigmaProtein"])
   if "shapeInGroupStdevs" in params:
-    params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], 0, params['sigmaCandidates'][:, np.newaxis])
+    params['inGroupDiffPrior'] = funcGamma(params['proteinDiffCandidates'], 0, params['sigmaCandidates'][:, np.newaxis])
+    # Changed below to above
+    #params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], 0, params['sigmaCandidates'][:, np.newaxis])
   else: # if we have technical replicates, we could use a delta function for the group scaling parameter to speed things up
-    fitDist(protDiffs, funcHypsec, "log10(protein diff in group)", ["muInGroupDiffs", "sigmaInGroupDiffs"], params, plot)
-    params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], params['muInGroupDiffs'], params['sigmaInGroupDiffs'])
-  
+    fitDist(protDiffs, funcGamma, "log10(protein diff in group)", ["muInGroupDiffs", "sigmaInGroupDiffs"], params, plot)
+    # Changed below to above
+    #fitDist(protDiffs, funcHypsec, "log10(protein diff in group)", ["muInGroupDiffs", "sigmaInGroupDiffs"], params, plot)
+    params['inGroupDiffPrior'] = funcGamma(params['proteinDiffCandidates'], params['muInGroupDiffs'], params['sigmaInGroupDiffs'])
+    #Changed below to above
+    #params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], params['muInGroupDiffs'], params['sigmaInGroupDiffs'])
   #fitDist(protGroupDiffs, funcHypsec, "log10(protein diff between groups)", ["muProteinGroupDiffs", "sigmaProteinGroupDiffs"], params, plot)
   
 def fitLogitNormal(observedValues, params, plot):

@@ -99,7 +99,7 @@ def runTriqler(params, triqlerInputFile, triqlerOutputFile):
     sys.exit("Could not locate input file %s. Check if the path to the input file is correct." % triqlerInputFile)
   peptQuantRowFile = triqlerInputFile + ".pqr.tsv"
   peptQuantRows = convertTriqlerInputToPeptQuantRows(triqlerInputFile, peptQuantRowFile, params)
-  print(peptQuantRows)
+  #print(peptQuantRows)
   if params['t-test']:
     qvalMethod = 'pvalues'
   else:

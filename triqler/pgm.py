@@ -114,8 +114,10 @@ def getPosteriorProteinGroupRatios(pProteinQuantsList, bayesQuantRow, params):
   pProteinGroupQuants = list()
   for groupId in range(numGroups):
     filteredProteinQuantsList = np.array([x for j, x in enumerate(pProteinQuantsList) if j in params['groups'][groupId]])
+    pDiffPrior = params['inGroupDiffPrior'][groupId]
     if "shapeInGroupStdevs" in params:
-      pMu = getPosteriorProteinGroupMuMarginalized(filteredProteinQuantsList, params)
+      #pMu = getPosteriorProteinGroupMuMarginalized(filteredProteinQuantsList, params)
+      pMu = getPosteriorProteinGroupMuMarginalized(pDiffPrior, filteredProteinQuantsList, params)
     else:
       pMu = getPosteriorProteinGroupMu(params['inGroupDiffPrior'], filteredProteinQuantsList, params)
     pProteinGroupQuants.append(pMu)
@@ -132,7 +134,7 @@ def getPosteriorProteinGroupMu(pDiffPrior, pProteinQuantsList, params):
   pMus = np.exp(pMus) / np.sum(np.exp(pMus))
   return pMus
 
-def getPosteriorProteinGroupMuMarginalized(pProteinQuantsList, params):
+def getPosteriorProteinGroupMuMarginalized(pDiffPrior, pProteinQuantsList, params):
   pMus = np.zeros((len(params['sigmaCandidates']), len(params['proteinQuantCandidates'])))
   for pProteinQuants in pProteinQuantsList:
     for idx, pDiffPrior in enumerate(params['inGroupDiffPrior']):

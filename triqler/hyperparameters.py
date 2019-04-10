@@ -18,6 +18,7 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   qc = params['proteinQuantCandidates']
   params['proteinDiffCandidates'] = np.linspace(2*qc[0], 2*qc[-1], len(qc)*2-1)
   
+  
   protQuantRows = parsers.filterAndGroupPeptides(peptQuantRows, lambda x : not x.protein[0].startswith(params['decoyPattern']))
   
   imputedVals, imputedDiffs, observedXICValues, protQuants, protDiffs, protStdevsInGroup, protGroupDiffs = list(), list(), list(), list(), list(), list(), list()
@@ -56,13 +57,14 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   
   fitLogitNormal(observedXICValues, params, plot)
   
-  fitDist(protQuants, funcGamma, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)
+  #print(protQuants)
+  #fitDist(protQuants, funcGamma, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)
   
-  #fitDist(protQuants, funcHypsec, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)
+  fitDist(protQuants, funcHypsec, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)
    
-  fitDist(imputedDiffs, funcGamma, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
+  #fitDist(imputedDiffs, funcGamma, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
   
-  #fitDist(imputedDiffs, funcHypsec, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
+  fitDist(imputedDiffs, funcHypsec, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
   
   fitDist(protStdevsInGroup, funcGamma, "stdev log10(protein diff in group)", ["shapeInGroupStdevs", "scaleInGroupStdevs"], params, plot, x = np.arange(-0.1, 1.0, 0.005))
   
@@ -73,16 +75,16 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   
   params['proteinPrior'] = funcLogHypsec(params['proteinQuantCandidates'], params["muProtein"], params["sigmaProtein"])
   if "shapeInGroupStdevs" in params:
-    params['inGroupDiffPrior'] = funcGamma(params['proteinDiffCandidates'], 0, params['sigmaCandidates'][:, np.newaxis])
+    #params['inGroupDiffPrior'] = funcGamma(params['proteinDiffCandidates'], 0, params['sigmaCandidates'][:, np.newaxis])
     # Changed below to above
-    #params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], 0, params['sigmaCandidates'][:, np.newaxis])
+    params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], 0, params['sigmaCandidates'][:, np.newaxis])
   else: # if we have technical replicates, we could use a delta function for the group scaling parameter to speed things up
-    fitDist(protDiffs, funcGamma, "log10(protein diff in group)", ["muInGroupDiffs", "sigmaInGroupDiffs"], params, plot)
+    #fitDist(protDiffs, funcGamma, "log10(protein diff in group)", ["muInGroupDiffs", "sigmaInGroupDiffs"], params, plot)
     # Changed below to above
-    #fitDist(protDiffs, funcHypsec, "log10(protein diff in group)", ["muInGroupDiffs", "sigmaInGroupDiffs"], params, plot)
-    params['inGroupDiffPrior'] = funcGamma(params['proteinDiffCandidates'], params['muInGroupDiffs'], params['sigmaInGroupDiffs'])
+    fitDist(protDiffs, funcHypsec, "log10(protein diff in group)", ["muInGroupDiffs", "sigmaInGroupDiffs"], params, plot)
+    #params['inGroupDiffPrior'] = funcGamma(params['proteinDiffCandidates'], params['muInGroupDiffs'], params['sigmaInGroupDiffs'])
     #Changed below to above
-    #params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], params['muInGroupDiffs'], params['sigmaInGroupDiffs'])
+    params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], params['muInGroupDiffs'], params['sigmaInGroupDiffs'])
   #fitDist(protGroupDiffs, funcHypsec, "log10(protein diff between groups)", ["muProteinGroupDiffs", "sigmaProteinGroupDiffs"], params, plot)
   
 def fitLogitNormal(observedValues, params, plot):

@@ -342,15 +342,19 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
   
   print("Fitting hyperparameters")
   #print(peptQuantRows)
+  #print(type(peptQuantRows))
+  #print(params)
   hyperparameters.fitPriors(peptQuantRows, params) # updates priors
   
   targetScores, decoyScores = list(), list()
   proteinOutputRows = list()
   seenProteins = set()
   
-  print("Calculating protein quants")
+  #print("Calculating protein quants")
   processingPool = pool.MyPool(processes = params['numThreads'], warningFilter = params['warningFilter'])
   pickedProteinOutputRowsNew = list()
+  
+  #print(pickedProteinOutputRows)
   for linkPEP, protein, quantRows, numPeptides in pickedProteinOutputRows:
     evalProtein = protein.replace(params['decoyPattern'], "", 1)
     if evalProtein not in seenProteins:
@@ -388,6 +392,7 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
       sumPEP += proteinPEP
   
   proteinOutputRowsUpdatedPEP = sorted(proteinOutputRowsUpdatedPEP, key = lambda x : (x[0], x[1]))
+ # print(proteinOutputRowsUpdatedPEP)
   return proteinOutputRowsUpdatedPEP
 
 def selectComparisonBayes(proteinOutputRows, comparisonKey, tTest = False):

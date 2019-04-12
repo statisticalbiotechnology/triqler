@@ -18,11 +18,14 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   qc = params['proteinQuantCandidates']
   params['proteinDiffCandidates'] = np.linspace(2*qc[0], 2*qc[-1], len(qc)*2-1)
   
+  #print(params["groups"])
+  #print(params["groupLabels"])
   
   protQuantRows = parsers.filterAndGroupPeptides(peptQuantRows, lambda x : not x.protein[0].startswith(params['decoyPattern']))
   
   imputedVals, imputedDiffs, observedXICValues, protQuants, protDiffs, protStdevsInGroup, protGroupDiffs = list(), list(), list(), list(), list(), list(), list()
   quantRowsCollection = list()
+  count = 0
   for prot, quantRows in protQuantRows:
     quantRows, quantMatrix = parsers.getQuantMatrix(quantRows)
     
@@ -31,7 +34,8 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     geoAvgQuantRow = getProteinQuant(quantMatrixNormalized, quantRows)
     
     protQuants.extend([np.log10(x) for x in geoAvgQuantRow if not np.isnan(x)])
-
+    
+    #print(protQuants)
     args = parsers.getQuantGroups(geoAvgQuantRow, params["groups"], np.log10)
     #means = list()
     for group in args:
@@ -60,8 +64,11 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   #print(protQuants)
   #fitDist(protQuants, funcGamma, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)
   
-  fitDist(protQuants, funcHypsec, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)
-   
+  
+  fitDist(protQuants, funcHypsec, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot, THATAG = True)
+  #import sys
+  #sys.exit() ######### DEBUG MODE
+  
   #fitDist(imputedDiffs, funcGamma, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
   
   fitDist(imputedDiffs, funcHypsec, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
@@ -115,16 +122,41 @@ def fitLogitNormal(observedValues, params, plot):
     plt.xlabel("log10(intensity)", fontsize = 18)
     plt.legend()
     
-def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
-  vals, bins = np.histogram(ys, bins = x, normed = True)
-  #print(vals)
-  #print(bins)
+def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01), THATAG = False):
+  vals, bins = np.histogram(ys, bins = x, normed = True)    
   bins = bins[:-1]
+  
+  if THATAG == True: ######### DEBUG MODE
+      import matplotlib.pyplot as plt
+      fig = plt.figure()
+      plt.hist(ys, bins = 100)
+      fig.savefig("TEST.png")
+      fig = plt.figure()
+      plt.plot(bins, vals)
+      fig.savefig("FEST.png")
+      
   popt, _ = curve_fit(func, bins, vals)
   outputString = ", ".join(["params[\"%s\"]"]*len(popt)) + " = " + ", ".join(["%f"] * len(popt))
+  
+  if THATAG == True:
+      print("CHECK THIS")
+      #print("print min ys: " + str(min(ys)))
+      #print("print min vals" + str(min(popt)))
+      print("test" + str(popt[1]))
+      for i in popt:
+          print(i)
+      for varName, val in zip(varNames, popt):
+          print(varName, val)
+  
   for varName, val in zip(varNames, popt):
     params[varName] = val
+    if varName == "muProtein":
+        params[varName] = min(ys) + popt[1]
   
+  if THATAG == True:
+    print("CHECK THIS")
+    print(params) 
+    
   if func == funcHypsec:
     fitLabel = "hypsec fit"
   elif func == funcNorm:

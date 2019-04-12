@@ -106,6 +106,7 @@ def runTriqler(params, triqlerInputFile, triqlerOutputFile):
     qvalMethod = 'avg_pep'
     
   selectComparisonBayesTmp = lambda proteinOutputRows, comparisonKey : selectComparisonBayes(proteinOutputRows, comparisonKey, params['t-test'])
+  
   diff_exp.doDiffExp(params, peptQuantRows, triqlerOutputFile, getPickedProteinCalibration, selectComparisonBayesTmp, qvalMethod = qvalMethod)
 
 def convertTriqlerInputToPeptQuantRows(triqlerInputFile, peptQuantRowFile, params):

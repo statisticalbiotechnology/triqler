@@ -8,7 +8,7 @@ import os
 import itertools
 
 import numpy as np
-from scipy.stats import hypsecant, gamma, norm, binom #, cauchy
+from scipy.stats import hypsecant, gamma, norm, binom, expon #, cauchy
 from scipy.optimize import curve_fit
 
 from . import parsers
@@ -61,15 +61,8 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   
   fitLogitNormal(observedXICValues, params, plot)
   
-  #print(protQuants)
-  #fitDist(protQuants, funcGamma, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)
-  
-  
-  fitDist(protQuants, funcHypsec, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot, THATAG = True)
-  #import sys
-  #sys.exit() ######### DEBUG MODE
-  
-  #fitDist(imputedDiffs, funcGamma, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
+  fitDist(protQuants, funcHypsec, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)#, THATAG = True)
+  #fitDist(protQuants, funcExpon, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)#, THATAG = True)
   
   fitDist(imputedDiffs, funcHypsec, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
   
@@ -80,17 +73,14 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   support = np.where(gammaCandidates > max(gammaCandidates) * 0.01)
   params['sigmaCandidates'] = np.linspace(sigmaCandidates[support[0][0]], sigmaCandidates[support[0][-1]], 20)
   
-  params['proteinPrior'] = funcLogHypsec(params['proteinQuantCandidates'], params["muProtein"], params["sigmaProtein"])
+  #params['proteinPrior'] = funcLogHypsec(params['proteinQuantCandidates'], params["muProtein"], params["sigmaProtein"]) ### HERE IS THE PRIOR for PROTEIN!
+  
+  params['proteinPrior'] = funcExpon(params['proteinQuantCandidates'], loc = -26, scale = 10)
+
   if "shapeInGroupStdevs" in params:
-    #params['inGroupDiffPrior'] = funcGamma(params['proteinDiffCandidates'], 0, params['sigmaCandidates'][:, np.newaxis])
-    # Changed below to above
     params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], 0, params['sigmaCandidates'][:, np.newaxis])
   else: # if we have technical replicates, we could use a delta function for the group scaling parameter to speed things up
-    #fitDist(protDiffs, funcGamma, "log10(protein diff in group)", ["muInGroupDiffs", "sigmaInGroupDiffs"], params, plot)
-    # Changed below to above
     fitDist(protDiffs, funcHypsec, "log10(protein diff in group)", ["muInGroupDiffs", "sigmaInGroupDiffs"], params, plot)
-    #params['inGroupDiffPrior'] = funcGamma(params['proteinDiffCandidates'], params['muInGroupDiffs'], params['sigmaInGroupDiffs'])
-    #Changed below to above
     params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], params['muInGroupDiffs'], params['sigmaInGroupDiffs'])
   #fitDist(protGroupDiffs, funcHypsec, "log10(protein diff between groups)", ["muProteinGroupDiffs", "sigmaProteinGroupDiffs"], params, plot)
   
@@ -122,41 +112,14 @@ def fitLogitNormal(observedValues, params, plot):
     plt.xlabel("log10(intensity)", fontsize = 18)
     plt.legend()
     
-def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01), THATAG = False):
-  vals, bins = np.histogram(ys, bins = x, normed = True)    
+def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
+  vals, bins = np.histogram(ys, bins = x, normed = True)
   bins = bins[:-1]
-  
-  if THATAG == True: ######### DEBUG MODE
-      import matplotlib.pyplot as plt
-      fig = plt.figure()
-      plt.hist(ys, bins = 100)
-      fig.savefig("TEST.png")
-      fig = plt.figure()
-      plt.plot(bins, vals)
-      fig.savefig("FEST.png")
-      
   popt, _ = curve_fit(func, bins, vals)
   outputString = ", ".join(["params[\"%s\"]"]*len(popt)) + " = " + ", ".join(["%f"] * len(popt))
-  
-  if THATAG == True:
-      print("CHECK THIS")
-      #print("print min ys: " + str(min(ys)))
-      #print("print min vals" + str(min(popt)))
-      print("test" + str(popt[1]))
-      for i in popt:
-          print(i)
-      for varName, val in zip(varNames, popt):
-          print(varName, val)
-  
   for varName, val in zip(varNames, popt):
     params[varName] = val
-    if varName == "muProtein":
-        params[varName] = min(ys) + popt[1]
   
-  if THATAG == True:
-    print("CHECK THIS")
-    print(params) 
-    
   if func == funcHypsec:
     fitLabel = "hypsec fit"
   elif func == funcNorm:
@@ -174,6 +137,31 @@ def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01), 
     if func == funcHypsec:
       poptNormal, _ = curve_fit(funcNorm, bins, vals)
       plt.plot(bins, funcNorm(bins, *poptNormal), 'r', label = 'normal fit', linewidth = 2.0)
+      
+      if True:
+        funcStudentT = lambda x, df, mu, sigma : t.pdf(x, df = df, loc = mu, scale = sigma)
+        poptStudentT, _ = curve_fit(funcStudentT, bins, vals)
+        print(poptStudentT)
+        
+        funcCauchy = lambda x, mu, sigma : cauchy.pdf(x, loc = mu, scale = sigma)
+        poptCauchy, _ = curve_fit(funcCauchy, bins, vals)
+        print(poptCauchy)
+        
+        plt.plot(bins, funcStudentT(bins, *poptStudentT), 'm', label = 'student-t fit', linewidth = 2.0)
+        plt.plot(bins, funcCauchy(bins, *poptCauchy), 'c', label = 'cauchy fit', linewidth = 2.0)
+        
+        funcLogStudentT = lambda x, df, mu, sigma : t.logpdf(x, df = df, loc = mu, scale = sigma)
+        funcLogNorm = lambda x, mu, sigma : norm.logpdf(x, loc = mu, scale = sigma)
+        funcLogCauchy = lambda x, mu, sigma : cauchy.logpdf(x, loc = mu, scale = sigma)
+        
+        plt.xlabel(xlabel, fontsize = 18)
+        plt.legend()
+        
+        plt.figure()
+        plt.plot(bins, funcLogHypsec(bins, *popt), 'g', label = 'hypsec log fit', linewidth = 2.0)
+        plt.plot(bins, funcLogNorm(bins, *poptNormal), 'r', label = 'normal log fit', linewidth = 2.0)
+        plt.plot(bins, funcLogStudentT(bins, *poptStudentT), 'm', label = 'student-t log fit', linewidth = 2.0)
+        plt.plot(bins, funcLogCauchy(bins, *poptCauchy), 'c', label = 'cauchy log fit', linewidth = 2.0)
     plt.xlabel(xlabel, fontsize = 18)
     plt.legend()
 
@@ -223,3 +211,6 @@ def funcGamma(x, shape, sigma):
 def logit(x, muLogit, sigmaLogit):
   return 0.5 + 0.5 * np.tanh((np.array(x) - muLogit) / sigmaLogit)
 
+def funcExpon(x, loc = 0, shape = 1):
+  return expon.pdf(x, loc, shape)
+    

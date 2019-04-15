@@ -15,6 +15,8 @@ from . import hyperparameters
 import sys
 
 def getPosteriors(quantRowsOrig, params, returnDistributions = True):
+  
+  
   quantRows, quantMatrix = parsers.getQuantMatrix(quantRowsOrig)
   
   pProteinQuantsList, bayesQuantRow = getPosteriorProteinRatios(quantMatrix, quantRows, params)
@@ -33,8 +35,10 @@ def getPosteriors(quantRowsOrig, params, returnDistributions = True):
 
 def getPosteriorProteinRatios(quantMatrix, quantRows, params, maxIterations = 50, bayesQuantRow = None):
   #print(len(quantMatrix))
+  
   numSamples = len(quantMatrix[0])
-  bayesQuantRow = np.array([1.0]*numSamples)
+  bayesQuantRow = np.array([1.0]*numSamples) #<--- uniform prior????
+  
   for iteration in range(maxIterations):  
     prevBayesQuantRow = np.copy(bayesQuantRow)
     pProteinQuantsList, bayesQuantRow = getPosteriorProteinRatio(quantMatrix, quantRows, bayesQuantRow, params)

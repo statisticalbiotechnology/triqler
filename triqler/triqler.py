@@ -334,7 +334,7 @@ def getProteinCalibration(peptQuantRows, proteinModifier, decoyPattern):
 
 def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalFeatures):
   targetProteinOutputRows, decoyProteinOutputRows = getProteinCalibration(peptQuantRows, proteinModifier, params['decoyPattern'])
-
+  
   pickedProteinOutputRows = targetProteinOutputRows + decoyProteinOutputRows
   np.random.shuffle(pickedProteinOutputRows)
 
@@ -345,8 +345,8 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
   #print(peptQuantRows)
   #print(type(peptQuantRows))
   #print(params)
-  hyperparameters.fitPriors(peptQuantRows, params) # updates priors
-  
+  hyperparameters.fitPriors(peptQuantRows, params) # updates priors ## FITS THE mu and sigma for protQuant HypSec
+  #print(params)
   targetScores, decoyScores = list(), list()
   proteinOutputRows = list()
   seenProteins = set()
@@ -354,8 +354,7 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
   #print("Calculating protein quants")
   processingPool = pool.MyPool(processes = params['numThreads'], warningFilter = params['warningFilter'])
   pickedProteinOutputRowsNew = list()
-  
-  #print(pickedProteinOutputRows)
+      
   for linkPEP, protein, quantRows, numPeptides in pickedProteinOutputRows:
     evalProtein = protein.replace(params['decoyPattern'], "", 1)
     if evalProtein not in seenProteins:
@@ -368,7 +367,7 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
       else:
         targetScores.append(score)
       pickedProteinOutputRowsNew.append([linkPEP, protein, quantRows, numPeptides])
-      returnDistributions = True # CHANGE
+      returnDistributions = True # CHANGE <---------------------------------------------------
       processingPool.applyAsync(pgm.getPosteriors, [quantRows, params, returnDistributions])
       #processingPool.applyAsync(pgm.getPosteriors, [quantRows, params])
       #pgm.getPosteriors(quantRows, params) # for debug mode
@@ -395,7 +394,14 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
   proteinOutputRowsUpdatedPEP = sorted(proteinOutputRowsUpdatedPEP, key = lambda x : (x[0], x[1]))
  # print(proteinOutputRowsUpdatedPEP)
   return proteinOutputRowsUpdatedPEP
-
+"""
+################################################################################
+################################################################################
+################################################################################
+################################################################################
+################################################################################
+################################################################################
+"""
 def selectComparisonBayes(proteinOutputRows, comparisonKey, tTest = False):
   proteinOutputRowsUpdatedPEP = list()
   for (linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs) in proteinOutputRows:

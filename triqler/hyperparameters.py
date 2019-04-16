@@ -75,7 +75,7 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   
   #params['proteinPrior'] = funcLogHypsec(params['proteinQuantCandidates'], params["muProtein"], params["sigmaProtein"]) ### HERE IS THE PRIOR for PROTEIN!
   
-  params['proteinPrior'] = funcExpon(params['proteinQuantCandidates'], loc = -26, scale = 10)
+  params['proteinPrior'] = funcExpon(params['proteinQuantCandidates'], loc = -26, shape = 10)
 
   if "shapeInGroupStdevs" in params:
     params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], 0, params['sigmaCandidates'][:, np.newaxis])

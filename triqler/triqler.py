@@ -75,6 +75,9 @@ def parseArgs():
   
   apars.add_argument('--returnDistributions',
                      help='Return posterior distributions for proteins and group.',
+                     default = True) 
+  apars.add_argument('--knownGroups',
+                     help='Use condition-wise (group-wise) priors if groups are known.',
                      default = True)                     
   # ------------------------------------------------
   args = apars.parse_args()
@@ -88,7 +91,8 @@ def parseArgs():
   params['numThreads'] = args.num_threads
   params['writeSpectrumQuants'] = args.write_spectrum_quants
   params['returnDistributions'] = args.returnDistributions
-  
+  params['knownGroups'] = args.knownGroups
+
   if params['minSamples'] < 2:
     sys.exit("ERROR: --min_samples should be >= 2")
   
@@ -107,7 +111,7 @@ def runTriqler(params, triqlerInputFile, triqlerOutputFile):
     
   selectComparisonBayesTmp = lambda proteinOutputRows, comparisonKey : selectComparisonBayes(proteinOutputRows, comparisonKey, params['t-test'])
   
-  diff_exp.doDiffExp(params, peptQuantRows, triqlerOutputFile, getPickedProteinCalibration, selectComparisonBayesTmp, qvalMethod = qvalMethod)
+  diff_exp.doDiffExp(params, peptQuantRows, triqlerOutputFile, getPickedProteinCalibration, selectComparisonBayesTmp, qvalMethod = qvalMethod, returnDistributions = params['returnDistributions'])
 
 def convertTriqlerInputToPeptQuantRows(triqlerInputFile, peptQuantRowFile, params):
   peptQuantRowMap, getPEPFromScore, params['fileList'], params['groupLabels'], params['groups'], params['hasLinkPEPs'] = getPeptQuantRowMap(triqlerInputFile, params['decoyPattern'])
@@ -380,7 +384,8 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
       else:
         targetScores.append(score)
       pickedProteinOutputRowsNew.append([linkPEP, protein, quantRows, numPeptides])
-      returnDistributions = True # CHANGE <---------------------------------------------------
+      #returnDistributions = True # CHANGE <---------------------------------------------------
+      returnDistributions = params['returnDistributions']
       processingPool.applyAsync(pgm.getPosteriors, [quantRows, params, returnDistributions])
       #processingPool.applyAsync(pgm.getPosteriors, [quantRows, params])
       #pgm.getPosteriors(quantRows, params) # for debug mode

@@ -34,6 +34,7 @@ def doDiffExp(params, peptQuantRows, outputFile, proteinQuantificationMethod, se
         evalFunctions = [lambda protein, evalFeatures : evalTruePositiveTtest(params["trueConcentrationsDict"], protein, groupId1, groupId2, evalFeatures[-2], params)]
       #print(proteinOutputRowsGroup)
       #print(proteinOutputFile)
+      #print(returnDistributions)
       getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params, returnDistributions = returnDistributions)
       np.savetxt("murf.csv", params["proteinPrior"], delimiter = "\t")
   if False:

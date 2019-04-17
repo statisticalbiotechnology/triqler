@@ -16,7 +16,7 @@ import sys
 
 def getPosteriors(quantRowsOrig, params, returnDistributions = True):
   
-  
+  #print(params)
   quantRows, quantMatrix = parsers.getQuantMatrix(quantRowsOrig)
   
   pProteinQuantsList, bayesQuantRow = getPosteriorProteinRatios(quantMatrix, quantRows, params)
@@ -56,7 +56,9 @@ def getPosteriorProteinRatios(quantMatrix, quantRows, params, maxIterations = 50
 
 def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   numSamples = len(quantMatrix[0])
-  
+  #for row in quantMatrix:
+  #    print(row)
+  #    print("NEXTROW")
   logGeoAvgs = np.log10([parsers.geomAvg(row) for row in quantMatrix])
   featDiffs = np.log10(quantMatrix) - logGeoAvgs[:,np.newaxis]
   pMissingGeomAvg = pMissing(logGeoAvgs, params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | t_grn = 1)
@@ -83,7 +85,7 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
         pMissings = pMissing(xImpsAll[i,j,:], params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | m_grn = 1, t_grn = 0)
         if np.isnan(row[j]):
           likelihood = pMissings * (1.0 - identPEP) * (1.0 - linkPEP) + pMissingGeomAvg[i] * (identPEP * (1.0 - linkPEP) + linkPEP)
-        else:
+        else: #TRY TO UNDERSTAND THE RELATIONSHIP BETWEEN THIS AND HYPSEC DISTRIBUTION
           likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - identPEP) * (1.0 - linkPEP) + (1.0 - pMissingGeomAvg[i]) * (pQuantIncorrectId[i][j] * identPEP * (1.0 - linkPEP) + linkPEP)
         
         if np.min(likelihood) == 0.0:

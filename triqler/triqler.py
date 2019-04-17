@@ -346,7 +346,20 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
   #print(type(peptQuantRows))
   #print(params)
   hyperparameters.fitPriors(peptQuantRows, params) # updates priors ## FITS THE mu and sigma for protQuant HypSec
-  #print(params)
+  #print(params.keys())
+  #print(len(params["inGroupDiffPrior"]))
+  #print(params["inGroupDiffPrior"])
+  #print(len(params["proteinPrior"]))
+  #print(params["proteinPrior"])
+  #print(len(params["proteinDiffCandidates"]))
+  #print(params["proteinDiffCandidates"])
+  
+  #print(len(params['sigmaCandidates'][:, np.newaxis]))
+  #print(params['sigmaCandidates'][:, np.newaxis])
+  
+  #print(len(params['sigmaCandidates']))
+  #print(params['sigmaCandidates'])
+  
   targetScores, decoyScores = list(), list()
   proteinOutputRows = list()
   seenProteins = set()

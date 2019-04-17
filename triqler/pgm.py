@@ -94,6 +94,7 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
     pProteinQuant = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
     pProteinQuantsList.append(pProteinQuant)
     
+    #print(len(params["proteinQuantCandidates"]))
     eValue, confRegion = getPosteriorParams(params['proteinQuantCandidates'], pProteinQuant)
     bayesQuantRow.append(eValue)
   

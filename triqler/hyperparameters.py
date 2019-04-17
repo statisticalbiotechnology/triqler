@@ -26,8 +26,14 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   imputedVals, imputedDiffs, observedXICValues, protQuants, protDiffs, protStdevsInGroup, protGroupDiffs = list(), list(), list(), list(), list(), list(), list()
   quantRowsCollection = list()
   count = 0
+      
   for prot, quantRows in protQuantRows:
+    
     quantRows, quantMatrix = parsers.getQuantMatrix(quantRows)
+    
+    #print(params["groups"])
+    #for i in range(len(params["groups"])):
+    #    print("group%s"%str(i), np.array(quantRows[0].quant)[params["groups"][i]])
     
     quantMatrixNormalized = [parsers.geoNormalize(row) for row in quantMatrix]
     quantRowsCollection.append((quantRows, quantMatrix))
@@ -61,6 +67,7 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   
   fitLogitNormal(observedXICValues, params, plot)
   
+  #print(len(protQuants))
   fitDist(protQuants, funcHypsec, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)#, THATAG = True)
   #fitDist(protQuants, funcExpon, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)#, THATAG = True)
   
@@ -74,9 +81,30 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   params['sigmaCandidates'] = np.linspace(sigmaCandidates[support[0][0]], sigmaCandidates[support[0][-1]], 20)
   
   #params['proteinPrior'] = funcLogHypsec(params['proteinQuantCandidates'], params["muProtein"], params["sigmaProtein"]) ### HERE IS THE PRIOR for PROTEIN!
-  
-  params['proteinPrior'] = funcExpon(params['proteinQuantCandidates'], loc = -26, shape = 10)
+  #print(params["groups"])
+  #print(params["groupLabels"])
+  protPriors = ['proteinPriorGroup%s' % s for s in params["groupLabels"]] # CREATE DIFFERENT PRIORS FOR GROUPS
+  #print(protPriors)
+  #print(params['proteinQuantCandidates'])
+  params['proteinPrior'] = funcLogHypsec(params['proteinQuantCandidates'], params["muProtein"], params["sigmaProtein"]) ### HERE IS THE PRIOR for PROTEIN!
 
+  #ToDo
+  #NEED TO FIND DIFFERENT muProteins and sigmaProteins for different groups
+  
+  params['proteinPrior'] = funcExpon(params['proteinQuantCandidates'], loc = -5000, shape = 100)
+  #print(params['proteinPrior'])
+  #np.savetxt("smurf.csv", params['proteinPrior'], delimiter = "\t")
+  #import pandas as pd
+  #smurfDF = pd.DataFrame(params["proteinPrior"])
+  #smurfax = smurfDF.plot()
+  #print(smurfDF.sum())
+  #smurfFig = smurfax.get_figure()
+  #smurfFig.savefig("smurffig.png")
+  #print("PRINTING POSTERIOR")
+  #print(params['proteinPrior'])
+  #print(len(params['proteinPrior']))
+
+  # IDENTIFY WHICH VALUE ACTUALLY BECOMES THE PROTEIN QUANTIFICATION...
   if "shapeInGroupStdevs" in params:
     params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], 0, params['sigmaCandidates'][:, np.newaxis])
   else: # if we have technical replicates, we could use a delta function for the group scaling parameter to speed things up
@@ -212,5 +240,5 @@ def logit(x, muLogit, sigmaLogit):
   return 0.5 + 0.5 * np.tanh((np.array(x) - muLogit) / sigmaLogit)
 
 def funcExpon(x, loc = 0, shape = 1):
-  return expon.pdf(x, loc, shape)
+  return expon.logpdf(x, loc, shape)
     

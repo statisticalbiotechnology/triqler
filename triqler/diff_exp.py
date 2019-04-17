@@ -35,15 +35,16 @@ def doDiffExp(params, peptQuantRows, outputFile, proteinQuantificationMethod, se
       #print(proteinOutputRowsGroup)
       #print(proteinOutputFile)
       getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params, returnDistributions = returnDistributions)
-  
+      np.savetxt("murf.csv", params["proteinPrior"], delimiter = "\t")
   if False:
     proteinOutputFile = outputFile
     #print(proteinOutputFile)
     proteinOutputRowsGroup = selectComparison(proteinOutputRows, 'ANOVA')
     if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
       evalFunctions = [lambda protein, evalFeatures : evalTruePositiveANOVA(params["trueConcentrationsDict"], protein)]
-  getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params, returnDistributions = returnDistributions)
+  #getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params, returnDistributions = returnDistributions)
 
+   
 def getOutpuFileExtension(outputFile):
   fileName = outputFile.split("/")[-1]
   if "." in fileName:

@@ -35,16 +35,19 @@ def getPosteriors(quantRowsOrig, params, returnDistributions = True):
 
 def getPosteriorProteinRatios(quantMatrix, quantRows, params, maxIterations = 50, bayesQuantRow = None):
   #print(len(quantMatrix))
-  
+  #print(params.keys())
+  #print("")
   numSamples = len(quantMatrix[0])
+  #print(numSamples)
   bayesQuantRow = np.array([1.0]*numSamples) #<--- uniform prior????
   
   for iteration in range(maxIterations):  
     prevBayesQuantRow = np.copy(bayesQuantRow)
     pProteinQuantsList, bayesQuantRow = getPosteriorProteinRatio(quantMatrix, quantRows, bayesQuantRow, params)
     #print(len(pProteinQuantsList[8]))    
-    #print(pProteinQuantsList)
+    #print(len(pProteinQuantsList[0]))
     
+    #print(bayesQuantRow)
     bayesQuantRow = parsers.geoNormalize(bayesQuantRow)
     
     diffInIteration = np.log10(prevBayesQuantRow) - np.log10(bayesQuantRow)
@@ -56,12 +59,31 @@ def getPosteriorProteinRatios(quantMatrix, quantRows, params, maxIterations = 50
 
 def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   numSamples = len(quantMatrix[0])
+  
   #for row in quantMatrix:
   #    print(row)
   #    print("NEXTROW")
+  logGeoAvgsGroups = [list() for i in range(len(params["groupLabels"]))]
+  #featDiffsGroups = [list() for i in range(len(params["groupLabels"]))]
+  pMissingGeomAvgGroups = [list() for i in range(len(params["groupLabels"]))]
+  for row in quantMatrix:
+      for i in range(len(params["groupLabels"])):
+          #print(row[params["groups"][i]])
+          logGeoAvgsGroups[i] = np.log10(parsers.geomAvg(row[params["groups"][i]]))
+          #featDiffsGroups[i] = np.array(quantMatrix)[:,params["groups"][i]] - logGeoAvgsGroups[i]
+          pMissingGeomAvgGroups[i] = pMissing(logGeoAvgsGroups[i], params["muDetect"+params["groupLabels"][i]],
+                               params["sigmaDetect"+params["groupLabels"][i]])
+  
+  #print()
+      #print("")
+      #print(row[params["group]])
   logGeoAvgs = np.log10([parsers.geomAvg(row) for row in quantMatrix])
   featDiffs = np.log10(quantMatrix) - logGeoAvgs[:,np.newaxis]
   pMissingGeomAvg = pMissing(logGeoAvgs, params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | t_grn = 1)
+  
+  #print(pMissingGeomAvg)
+  #print(featDiffsGroups)
+  #print("")
   
   pQuantIncorrectId = hyperparameters.funcGamma(featDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | t_grn = 1)
   #Changed below
@@ -74,10 +96,20 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   #Chenged below
   #pDiffs = hyperparameters.funcHypsec(impDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | m_grn = 0, t_grn = 0)
   
+  # fix mapping function for params["groups"] so that we can use different priors for differen j in for-loop below.
+  val = 5
+  a =  [[1,2,3],[4,5,6],[7,8,9]]
+  for i,j in enumerate(a):
+      if val in j:
+          print(i)
+        
+
+  #print(params["proteinPrior"])
+  print(type(params["groups"]))
   pProteinQuantsList, bayesQuantRow = list(), list()
   for j in range(numSamples):
     pProteinQuant = params['proteinPrior'].copy() # log likelihood
-    
+    #if j in params["groups"]
     for i, row in enumerate(quantMatrix):
       linkPEP = quantRows[i].linkPEP[j]
       identPEP = quantRows[i].identificationPEP[j]

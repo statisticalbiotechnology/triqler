@@ -125,17 +125,23 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     xImps = imputeValues(quantMatrixFiltered, geoAvgQuantRow, np.log10(geoAvgQuantRow))
     imputedDiffs.extend((xImps - quantMatrixFiltered)[(~np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
     #imputedVals.extend(xImps[(np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
-  
-  fitLogitNormal(observedXICValues, params, plot) # NOW I AM HERE 2019-04-17
-  
+  if params["knownGroups"] == True:
+      for i in range(len(observedXICValuesGroups)):
+          fitLogitNormal(observedXICValuesGroups[i], ["muDetect"+params["groupLabels"][i],
+                                                 "sigmaDetect"+params["groupLabels"][i],
+                                                 "muXIC"+params["groupLabels"][i],
+                                                 "sigmaXIC"+params["groupLabels"][i]],params, plot) 
+  fitLogitNormal(observedXICValues, ["muDetect", "sigmaDetect", "muXIC", "sigmaXIC"], params, plot) # NOW I AM HERE 2019-04-17
+  #print(params.keys())
   #print(len(protQuants))
   #print(protQuants)
   #print(params.keys())
   #print(params["fileList"])
-  for i in range(len(protQuantsGroups)):  
-      fitDist(protQuantsGroups[i], funcHypsec, "log10(protein ratio) group"+params["groupLabels"][i],
-              ["muProteinGroup"+params["groupLabels"][i], "sigmaProteinGroup"+params["groupLabels"][i]],
-              params, plot)
+  if params["knownGroups"] == True:
+      for i in range(len(protQuantsGroups)):  
+          fitDist(protQuantsGroups[i], funcHypsec, "log10(protein ratio) group"+params["groupLabels"][i],
+                  ["muProteinGroup"+params["groupLabels"][i], "sigmaProteinGroup"+params["groupLabels"][i]],
+                  params, plot)
       #print(params["groupLabels"][i])
       #print(params["muProteinGroup"+params["groupLabels"][i]])
       #print(params["sigmaProteinGroup"+params["groupLabels"][i]])
@@ -207,7 +213,7 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], params['muInGroupDiffs'], params['sigmaInGroupDiffs'])
   #fitDist(protGroupDiffs, funcHypsec, "log10(protein diff between groups)", ["muProteinGroupDiffs", "sigmaProteinGroupDiffs"], params, plot)
   
-def fitLogitNormal(observedValues, params, plot):
+def fitLogitNormal(observedValues, varNames, params, plot):
   m = np.mean(observedValues)
   s = np.std(observedValues)
   minBin, maxBin = m - 4*s, m + 4*s
@@ -216,14 +222,18 @@ def fitLogitNormal(observedValues, params, plot):
   bins = bins[:-1]
   popt, _ = curve_fit(funcLogitNormal, bins, vals, p0 = (m, s, m - s, s))
   
+  varNames = varNames
+  for varName, val in zip(varNames, popt):
+      #print(varName + " " + str(val))
+      params[varName] = val
   # WHAT THE FUCK IS muDetect and does the PGM Go both ways?????
   
   #print("params[\"muDetectInit\"], params[\"sigmaDetectInit\"] = %f, %f" % (popt[0], popt[1]))
-  print("params[\"muDetect\"], params[\"sigmaDetect\"] = %f, %f" % (popt[0], popt[1]))
-  print("params[\"muXIC\"], params[\"sigmaXIC\"] = %f, %f" % (popt[2], popt[3]))
+  print("params[\""+varNames[0]+"\"], params[\""+varNames[1]+"\"] = %f, %f" % (popt[0], popt[1]))
+  print("params[\""+varNames[2]+"\"], params[\""+varNames[3]+"\"] = %f, %f" % (popt[2], popt[3]))
   #params["muDetectInit"], params["sigmaDetectInit"] = popt[0], popt[1]
-  params["muDetect"], params["sigmaDetect"] = popt[0], popt[1]
-  params["muXIC"], params["sigmaXIC"] = popt[2], popt[3]
+  #params["muDetect"], params["sigmaDetect"] = popt[0], popt[1]
+  #params["muXIC"], params["sigmaXIC"] = popt[2], popt[3]
   if plot:
     poptNormal, _ = curve_fit(funcNorm, bins, vals)
     

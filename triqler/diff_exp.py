@@ -183,8 +183,10 @@ def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params, r
         if 'pvalues' in qvalMethod:
           reportedQvals.append(reportedQvalsPval[i])
         else:
-          reportedQvals.append(qval)
-        
+          try:
+              reportedQvals.append(qval)
+          except:
+              reportedQvals.append(1337)
         if plotCalibration:
           observedQvals.append(observedQval)
       numTies = 1

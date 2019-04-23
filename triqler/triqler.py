@@ -99,6 +99,9 @@ def parseArgs():
   return args, params
   
 def runTriqler(params, triqlerInputFile, triqlerOutputFile):  
+  print("""
+        THIS IS RUN WITH DIFFERENT PRIORS FOR EACH SAMPLE!
+        """)
   if not os.path.isfile(triqlerInputFile):
     sys.exit("Could not locate input file %s. Check if the path to the input file is correct." % triqlerInputFile)
   peptQuantRowFile = triqlerInputFile + ".pqr.tsv"

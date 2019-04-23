@@ -97,19 +97,43 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   #pDiffs = hyperparameters.funcHypsec(impDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | m_grn = 0, t_grn = 0)
   
   # fix mapping function for params["groups"] so that we can use different priors for differen j in for-loop below.
-  val = 5
-  a =  [[1,2,3],[4,5,6],[7,8,9]]
-  for i,j in enumerate(a):
-      if val in j:
-          print(i)
-        
-
+  #val = 5
+  #a =  [[1,2,3],[4,5,6],[7,8,9], [5,5,5]]
+  #cnt = 0
+  #for i,j in enumerate(params["groups"]):
+  #for i,j in enumerate(a):
+      #print(i,j)
+  #    if val in j:
+  #         if cnt > 0:
+ #              raise ("COUNT +1 <----------------------------------------")
+ #          print(params["proteinPriorGroups"][i])
+ #          cnt += 1 # count to check if more than one prior.
+  #val = 5 # j
+  #for i,j in enumerate(params["groups"]):
+  #    if val in j:
+  #        print(params["proteinPriorGroups"][i])
+          
+          
+  #print(params.keys())
+  #print(np.shape(params["proteinPriorGroups"])) 
+  
+  #print(params["proteinPriorGroups"])
+  #print(params[params["proteinPriorGroups"][1]])
   #print(params["proteinPrior"])
-  print(type(params["groups"]))
+  #print(type(params["groups"]))
   pProteinQuantsList, bayesQuantRow = list(), list()
   for j in range(numSamples):
-    pProteinQuant = params['proteinPrior'].copy() # log likelihood
-    #if j in params["groups"]
+    #pProteinQuant = params['proteinPrior'].copy() # log likelihood
+    #print(pProteinQuant)
+    cnt = 0
+    for priorGroup, sampleInPrior in enumerate(params["groups"]):
+        if j in sampleInPrior:
+            if cnt > 0:
+                raise ("ERROR with multiple prior assignement <----------------------------------------")
+            #print(params["proteinPriorGroups"])
+            pProteinQuant = params[params["proteinPriorGroups"][priorGroup]].copy()
+            #print(pProteinQuant)
+            cnt += 1  
     for i, row in enumerate(quantMatrix):
       linkPEP = quantRows[i].linkPEP[j]
       identPEP = quantRows[i].identificationPEP[j]

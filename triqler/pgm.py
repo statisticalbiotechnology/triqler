@@ -132,7 +132,10 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
                 raise ("ERROR with multiple prior assignement <----------------------------------------")
             #print(params["proteinPriorGroups"])
             pProteinQuant = params[params["proteinPriorGroups"][priorGroup]].copy()
-            #print(pProteinQuant)
+            if np.isnan(pProteinQuant).sum() > 0:
+                print("NaN count: " + str(np.isnan(pProteinQuant).sum()))
+                print(pProteinQuant)
+                raise ("NaN encountered in groupPrior")
             cnt += 1  
     for i, row in enumerate(quantMatrix):
       linkPEP = quantRows[i].linkPEP[j]
@@ -146,8 +149,12 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
         
         if np.min(likelihood) == 0.0:
           likelihood += np.nextafter(0,1)
+         if np.isnan(likelihood).sum() > 0:
+             print("NaN count: " + str(np.isnan(likelihood).sum()))
+             print(likelihood)
+             raise ("NaN encountered in likelihood computations")
         pProteinQuant += np.log(likelihood)
-        pProteinQuant = np.nan_to_num(pProteinQuant) # fix NaN issue in protein quants
+        #pProteinQuant = np.nan_to_num(pProteinQuant) # fix NaN issue in protein quants
       
     pProteinQuant -= np.max(pProteinQuant)
     #print(pProteinQuant)

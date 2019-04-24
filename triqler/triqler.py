@@ -341,7 +341,7 @@ def getProteinCalibration(peptQuantRows, proteinModifier, decoyPattern):
 
 def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalFeatures):
   targetProteinOutputRows, decoyProteinOutputRows = getProteinCalibration(peptQuantRows, proteinModifier, params['decoyPattern'])
-  
+  #print((targetProteinOutputRows))
   pickedProteinOutputRows = targetProteinOutputRows + decoyProteinOutputRows
   np.random.shuffle(pickedProteinOutputRows)
 

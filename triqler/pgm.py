@@ -147,13 +147,16 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
         if np.min(likelihood) == 0.0:
           likelihood += np.nextafter(0,1)
         pProteinQuant += np.log(likelihood)
+        pProteinQuant = np.nan_to_num(pProteinQuant) # fix NaN issue in protein quants
       
     pProteinQuant -= np.max(pProteinQuant)
+    #print(pProteinQuant)
     pProteinQuant = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
     pProteinQuantsList.append(pProteinQuant)
     
     #print(len(params["proteinQuantCandidates"]))
     eValue, confRegion = getPosteriorParams(params['proteinQuantCandidates'], pProteinQuant)
+    #print(params['proteinQuantCandidates'])
     bayesQuantRow.append(eValue)
   
   return pProteinQuantsList, bayesQuantRow

@@ -149,10 +149,10 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
         
         if np.min(likelihood) == 0.0:
           likelihood += np.nextafter(0,1)
-         if np.isnan(likelihood).sum() > 0:
-             print("NaN count: " + str(np.isnan(likelihood).sum()))
-             print(likelihood)
-             raise ("NaN encountered in likelihood computations")
+        if np.isnan(likelihood).sum() > 0:
+            print("NaN count: " + str(np.isnan(likelihood).sum()))
+            print(likelihood)
+            raise ("NaN encountered in likelihood computations")
         pProteinQuant += np.log(likelihood)
         #pProteinQuant = np.nan_to_num(pProteinQuant) # fix NaN issue in protein quants
       

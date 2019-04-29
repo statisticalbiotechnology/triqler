@@ -63,24 +63,111 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   #for row in quantMatrix:
   #    print(row)
   #    print("NEXTROW")
-  logGeoAvgsGroups = [list() for i in range(len(params["groupLabels"]))]
-  #featDiffsGroups = [list() for i in range(len(params["groupLabels"]))]
-  pMissingGeomAvgGroups = [list() for i in range(len(params["groupLabels"]))]
-  for row in quantMatrix:
-      for i in range(len(params["groupLabels"])):
-          #print(row[params["groups"][i]])
-          logGeoAvgsGroups[i] = np.log10(parsers.geomAvg(row[params["groups"][i]]))
-          #featDiffsGroups[i] = np.array(quantMatrix)[:,params["groups"][i]] - logGeoAvgsGroups[i]
-          pMissingGeomAvgGroups[i] = pMissing(logGeoAvgsGroups[i], params["muDetect"+params["groupLabels"][i]],
-                               params["sigmaDetect"+params["groupLabels"][i]])
   
-  #print()
-      #print("")
-      #print(row[params["group]])
+  
+  #logGeoAvgsGroups = [list() for i in range(len(params["groupLabels"]))]
+  #featDiffsGroups = [list() for i in range(len(params["groupLabels"]))] #<------------- check this!
+  #pMissingGeomAvgGroups = [list() for i in range(len(params["groupLabels"]))]
+  
+  
+  #for row in quantMatrix:
+  #    for i in range(len(params["groupLabels"])):
+          #print(row[params["groups"][i]])
+          #print(row[params["groups"][i]])
+          #print(parsers.geomAvg(row[params["groups"][i]]))
+  #        logGeoAvgsGroups[i] = np.log10(parsers.geomAvg(row[params["groups"][i]]))
+  #        print(parsers.geomAvg(row[params["groups"][i]]))
+  #        featDiffsGroups[i] = np.log10(np.array(quantMatrix)[:,params["groups"][i]]) - logGeoAvgsGroups[i]
+  #        pMissingGeomAvgGroups[i] = pMissing(logGeoAvgsGroups[i], params["muDetect"+params["groupLabels"][i]],
+  #                             params["sigmaDetect"+params["groupLabels"][i]])
+  #    print("#############################################")
+  
+  # ABOVE IS HARD TO SEE WHAT IS GOING ON REDO IN MULTIPLE FOR-LOOPS
+  #for row in quantMatrix:
+  #    print(parsers.geomAvg(row))
+  #[print(parsers.geomAvg(row)) for row in quantMatrix]
+  
+  #print(np.shape(quantMatrix))
+  
+
+  logGeoAvgsGroups = []
+  for row in quantMatrix:
+      logGeoAvgs_i = []
+      for i in range(len(params["groupLabels"])):
+          logGeoAvgs_i.append(np.log10(parsers.geomAvg(row[params["groups"][i]])))
+      logGeoAvgsGroups.append(logGeoAvgs_i)
+
+  
+  # featDiffs should not need to be split, since they are quantMatrix - logGeoAvgsGroups
+  #for i in logGeoAvgsGroups:
+  #  for j in range(len(params["groupLabels"])):
+  
+  ########
+  # MATC logGEoAVGS to quantMatrix!!!! ###
+          ###
+
+  featDiffsGroups = []
+  for row in range(len(quantMatrix)):
+      featDiffs_i = []
+      for i in range(len(params["groupLabels"])):
+          #print("qMAT")
+          #print(np.log10(quantMatrix[row][params["groups"][i]]))
+          #print("logGeo")
+          #print(logGeoAvgsGroups[row][i])
+          #print(logGeoAvgsGroups[row][params["groups"][i]])
+          featDiffs_i.append(np.log10(quantMatrix[row][params["groups"][i]]) - logGeoAvgsGroups[row][i])
+      featDiffsGroups.append(np.concatenate(featDiffs_i, axis = 0))#.tolist())
+  featDiffsGroups = np.array(featDiffsGroups)  
+  #print(featDiffsGroups)
+  #print("NEWLINE###################")   # I THINK THIS IS DONE!
+
+  pMissingGeomAvgGroups = [[] for i in range(len(params["groupLabels"]))]
+  #print(pMissingGeomAvgGroups)
+  #print(logGeoAvgsGroups) 
+#  print(logGeoAvgs)
+  for i in range(len(params["groupLabels"])):
+      #print(np.array(logGeoAvgsGroups)[:,i])
+      #print(pMissing(np.array(logGeoAvgsGroups)[:,i], 
+      #      params["muDetect"+params["groupLabels"][i]], 
+      #      params["sigmaDetect"+params["groupLabels"][i]]))
+      pMissingGeomAvgGroups[i] = pMissing(np.array(logGeoAvgsGroups)[:,i], 
+            params["muDetect"+params["groupLabels"][i]], 
+            params["sigmaDetect"+params["groupLabels"][i]])
+  pMissingGeomAvgGroups = np.array(pMissingGeomAvgGroups).T.tolist()
+
+  ############################################################
+  # DONE WITH  pMissingGeomAvg Prior Parameters 2019-04-29 ###
+  ############################################################ 
+
   logGeoAvgs = np.log10([parsers.geomAvg(row) for row in quantMatrix])
-  featDiffs = np.log10(quantMatrix) - logGeoAvgs[:,np.newaxis]
+  featDiffs = np.log10(quantMatrix) - logGeoAvgs[:,np.newaxis] 
+  featDiffs = featDiffsGroups #<---------------------------------------- NOTE THIS!!!!!
   pMissingGeomAvg = pMissing(logGeoAvgs, params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | t_grn = 1)
   
+  
+  #print(logGeoAvgsGroups) 
+  #print(params[
+
+  #print(featDiffs == featDiffsGroups)
+  
+  #for i in range(len(logGeoAvgsGroups)):
+  #    print
+#  for i in range(len(params["groupLabels"])):
+#      print(params["sigmaDetect"+params["groupLabels"][i]])
+  
+  #for i in logGeoAvgsGroups:
+      
+  #print(np.shape(featDiffs) == np.shape(featDiffsGroups))
+  #  print(quantMatrix)
+#  print("qMatrix")   
+#  print(np.log10(quantMatrix))
+#  print("logGeos")
+#  print(logGeoAvgs[:,np.newaxis])    
+#  print("###############")
+#  print("NEEEXT")
+  #print(len(featDiffs[0]))
+  #print(len(featDiffs) == len(logGeoAvgs))
+  '''
   print("""
         CHECK params!!!!!
         params["muDetect"] and params["sigmaDetect"]
@@ -95,17 +182,40 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   #print(pMissingGeomAvg)
   #print(featDiffsGroups)
   #print("")
-  
+  '''
   #pQuantIncorrectId = hyperparameters.funcGamma(featDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | t_grn = 1)
   #Changed below
   pQuantIncorrectId = hyperparameters.funcHypsec(featDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | t_grn = 1)
   #pQuantIncorrectIdOld = hyperparameters.funcLogitNormal(np.log10(quantMatrix), params["muDetect"], params["sigmaDetect"], params["muXIC"], params["sigmaXIC"]) 
-  
+
   xImpsAll = imputeValues(quantMatrix, geoAvgQuantRow, params['proteinQuantCandidates'])
   impDiffs = xImpsAll - np.log10(np.array(quantMatrix))[:,:,np.newaxis]
   #pDiffs = hyperparameters.funcGamma(impDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | m_grn = 0, t_grn = 0)
   #Chenged below
   pDiffs = hyperparameters.funcHypsec(impDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | m_grn = 0, t_grn = 0)
+  
+  ########################################
+  # CHANGING ABOVE PARAMETERS 2019-04-29 #
+  ########################################
+  
+  #print(np.shape(featDiffsGroups) == np.shape(featDiffs))
+  #print(len(featDiffsGroups))
+  
+  ##################################################################
+  # CONTINUE HERE AFTER FIXING muFeatureDiff in hyperparameters.py #
+  ##################################################################
+  
+#  pQuantIncorrectIdGroup = []
+#  for i in range(len(featDiffsGroups)):
+#      pQuantIncorrectIdGroup_i = []
+#      for j in range(len(params["groupLabels"])):
+#          print(featDiffsGroups[i][params["groups"][j]], params["muFeatureDiff"+params["groupLab]])
+#  
+#  print(params)
+#  
+  #######################3
+  
+  #print(hyperparameters.funcHypsec(featDiffsGroups[0][0:3], params["muFeatureDiff"], params["sigmaFeatureDiff"]))
   
   # fix mapping function for params["groups"] so that we can use different priors for differen j in for-loop below.
   #val = 5
@@ -153,6 +263,7 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
       identPEP = quantRows[i].identificationPEP[j]
       if identPEP < 1.0:
         pMissings = pMissing(xImpsAll[i,j,:], params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | m_grn = 1, t_grn = 0)
+        
         if np.isnan(row[j]):
           likelihood = pMissings * (1.0 - identPEP) * (1.0 - linkPEP) + pMissingGeomAvg[i] * (identPEP * (1.0 - linkPEP) + linkPEP)
         else: #TRY TO UNDERSTAND THE RELATIONSHIP BETWEEN THIS AND HYPSEC DISTRIBUTION
@@ -161,6 +272,7 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
         if np.min(likelihood) == 0.0:
           likelihood += np.nextafter(0,1)
         #likelihood = np.nan_to_num(likelihood)
+        '''
         print("""
               DEBUG MESSAGE!!!!!!!!!!!!!!!!!
               """)
@@ -179,7 +291,7 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
         print("""
               END OF MESSAGE!!!!!!!!!!
               """)
-        
+        '''
         if np.isnan(likelihood).sum() > 0:
             print("NaN count: " + str(np.isnan(likelihood).sum()))
             print(likelihood)

@@ -28,24 +28,34 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   observedXICValuesGroups = [list() for i in range(len(params["groupLabels"]))] # observedXICValuesGroups for each condition/group.
   protQuantsGroups = [list() for i in range(len(params["groupLabels"]))] # ProtQuant for each condition/group.
   quantRowsCollection = list()
+  quantRowsCollectionGroup = list() # for group-wise samples.
   count = 0
       
   for prot, quantRows in protQuantRows:
     
     quantRows, quantMatrix = parsers.getQuantMatrix(quantRows)
     
-    #print(params["groups"])
-    #for i in range(len(params["groups"])):
-    #    print("group%s"%str(i), np.array(quantRows[0].quant)[params["groups"][i]])
-  
-    #for i in quantMatrix:
-    #    print(i)
-    #    print("SEP")
+    # GROUP BASED NORMALIZATION AND AVERAGING
+    if params["groupNorm"] == True:
+        quantMatrixNormalizedGroup = []
+        for row in quantMatrix:
+            quantMatrixNormalized_i = []
+            for i in range(len(params["groupLabels"])):
+                quantMatrixNormalized_i.append(parsers.geoNormalize(np.array(row)[params["groups"][i]]))
+            quantMatrixNormalized_i = np.concatenate(quantMatrixNormalized_i)
+            quantMatrixNormalizedGroup.append(quantMatrixNormalized_i)
+        quantRowsCollectionGroup.append((quantRows, quantMatrixNormalizedGroup))
+        geoAvgQuantRowGroup = getProteinQuant(quantMatrixNormalizedGroup, quantRows)
+        geoAvgQuantRow = geoAvgQuantRowGroup
+    else:
+    # NORMALIZE BASED ON ALL DATA
+        quantMatrixNormalized = [parsers.geoNormalize(row) for row in quantMatrix]
+        quantRowsCollection.append((quantRows, quantMatrix))
+        geoAvgQuantRow = getProteinQuant(quantMatrixNormalized, quantRows)
+        
+    #print(np.array(quantMatrixNormalized)[:,0:3])
     
-    quantMatrixNormalized = [parsers.geoNormalize(row) for row in quantMatrix]
-    quantRowsCollection.append((quantRows, quantMatrix))
-    geoAvgQuantRow = getProteinQuant(quantMatrixNormalized, quantRows)
-    
+    #print(getProteinQuant(quantMatrixNormalized[0:3], quantRows))
     #print(geoAvgQuantRow[params["groups"][0]]) 
     #print(geoAvgQuantRow) #is np.array
     #if params["knownGroups"] == True:
@@ -55,15 +65,24 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
       #    print(params["muProteinGroups"][i])
       #    print(params["sigmaProteinGroups"][i])
       
-     
     #print(params["groups"])
     if params["knownGroups"] == True:
-        for i in range(len(params["groupLabels"])):
-            protQuantsGroups[i].extend([np.log10(x) for x in geoAvgQuantRow[params["groups"][i]] if not np.isnan(x)])    
+        if params["groupNorm"] == True:
+            for i in range(len(params["groupLabels"])):
+                protQuantsGroups[i].extend([np.log10(x) for x in geoAvgQuantRowGroup[params["groups"][i]] if not np.isnan(x)])    
+        else:
+            for i in range(len(params["groupLabels"])):
+                protQuantsGroups[i].extend([np.log10(x) for x in geoAvgQuantRow[params["groups"][i]] if not np.isnan(x)])    
     protQuants.extend([np.log10(x) for x in geoAvgQuantRow if not np.isnan(x)])
     #print(len(protQuants))
     #print(protQuants)
-    args = parsers.getQuantGroups(geoAvgQuantRow, params["groups"], np.log10)
+    
+    if params["groupNorm"] == True:
+        args = parsers.getQuantGroups(geoAvgQuantRowGroup, params["groups"], np.log10)
+    else:
+        args = parsers.getQuantGroups(geoAvgQuantRow, params["groups"], np.log10)
+
+    #print(args)
     #means = list()
     
     for group in args:
@@ -122,8 +141,14 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     #print((len(observedXICValuesGroups[0])+len(observedXICValuesGroups[1])+len(observedXICValuesGroups[2])) == (len(observedXICValues)))
     # counts number of NaNs per run, if there is only 1 non NaN in the column, we cannot use it for estimating the imputedDiffs distribution
     numNonNaNs = np.count_nonzero(~np.isnan(quantMatrixFiltered), axis = 0)[np.newaxis,:]
-    xImps = imputeValues(quantMatrixFiltered, geoAvgQuantRow, np.log10(geoAvgQuantRow))
-    imputedDiffs.extend((xImps - quantMatrixFiltered)[(~np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
+    if params["groupNorm"] == True:
+        xImps = imputeValues(quantMatrixFiltered, geoAvgQuantRowGroup, np.log10(geoAvgQuantRowGroup))
+        imputedDiffs.extend((xImps - quantMatrixFiltered)[(~np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
+    else:
+        xImps = imputeValues(quantMatrixFiltered, geoAvgQuantRow, np.log10(geoAvgQuantRow))
+        imputedDiffs.extend((xImps - quantMatrixFiltered)[(~np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
+        
+
     #imputedVals.extend(xImps[(np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
   if params["knownGroups"] == True:
       for i in range(len(observedXICValuesGroups)):
@@ -154,10 +179,13 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   #print(params["muDetect"])
   #print(params["muProtein"])
   
+  #################################################################
+  # CHANGE THIS TO INCORPORATE MULTIPLE muFeatureDiff? 2019-04-29 #
+  #################################################################
+  
   fitDist(imputedDiffs, funcHypsec, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
-  
   fitDist(protStdevsInGroup, funcGamma, "stdev log10(protein diff in group)", ["shapeInGroupStdevs", "scaleInGroupStdevs"], params, plot, x = np.arange(-0.1, 1.0, 0.005))
-  
+  print(len(protStdevsInGroup))
   sigmaCandidates = np.arange(0.001, 3.0, 0.001)
   gammaCandidates = funcGamma(sigmaCandidates, params["shapeInGroupStdevs"], params["scaleInGroupStdevs"])
   support = np.where(gammaCandidates > max(gammaCandidates) * 0.01)

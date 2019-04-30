@@ -185,6 +185,7 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   '''
   #pQuantIncorrectId = hyperparameters.funcGamma(featDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | t_grn = 1)
   #Changed below
+  #print(featDiffs == featDiffsGroups) # featDiffs is equal to featDiffsGroup!!!!
   pQuantIncorrectId = hyperparameters.funcHypsec(featDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | t_grn = 1)
   #pQuantIncorrectIdOld = hyperparameters.funcLogitNormal(np.log10(quantMatrix), params["muDetect"], params["sigmaDetect"], params["muXIC"], params["sigmaXIC"]) 
 
@@ -192,7 +193,14 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   impDiffs = xImpsAll - np.log10(np.array(quantMatrix))[:,:,np.newaxis]
   #pDiffs = hyperparameters.funcGamma(impDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | m_grn = 0, t_grn = 0)
   #Chenged below
+  #print(len(impDiffs[0]))
   pDiffs = hyperparameters.funcHypsec(impDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | m_grn = 0, t_grn = 0)
+  
+  #print(params["muFeatureDiff"]) #<--------------
+  
+  
+  #for i in range(len(params["groupLabels"])):
+  #    featDiffs[:,params["groups"][0]]) 
   
   ########################################
   # CHANGING ABOVE PARAMETERS 2019-04-29 #

@@ -14,6 +14,11 @@ from scipy.optimize import curve_fit
 from . import parsers
 
 def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
+  ########
+  # ToDo #
+  # - FIX params["groupNorm"] = True, remove redundancy of geoAvgQuantRowGroup !!!!!!!!
+  ########
+    
   params['proteinQuantCandidates'] = np.arange(-5.0, 5.0 + 1e-10, 0.01) # log10 of protein ratio  
   qc = params['proteinQuantCandidates']
   params['proteinDiffCandidates'] = np.linspace(2*qc[0], 2*qc[-1], len(qc)*2-1)
@@ -36,6 +41,7 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     quantRows, quantMatrix = parsers.getQuantMatrix(quantRows)
     
     # GROUP BASED NORMALIZATION AND AVERAGING
+    #print(params["groupNorm"])
     if params["groupNorm"] == True:
         quantMatrixNormalizedGroup = []
         for row in quantMatrix:
@@ -82,10 +88,9 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     else:
         args = parsers.getQuantGroups(geoAvgQuantRow, params["groups"], np.log10)
 
-    #print(args)
     #means = list()
     
-    for group in args:
+    for group in args: # ALREADY SPLIT UP INTO GROUPS
       if np.count_nonzero(~np.isnan(group)) > 1:
         protDiffs.extend(group - np.mean(group))
         protStdevsInGroup.append(np.std(group))
@@ -140,15 +145,42 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     #print(observedXICValues)
     #print((len(observedXICValuesGroups[0])+len(observedXICValuesGroups[1])+len(observedXICValuesGroups[2])) == (len(observedXICValues)))
     # counts number of NaNs per run, if there is only 1 non NaN in the column, we cannot use it for estimating the imputedDiffs distribution
+    
+    #print(quantMatrixFiltered[:, params["groups"][0]])
+#    
+#    numNonNaNsGroups = []
+#    for i in range(len(quantMatrixFiltered)):
+#        numNonNaNs_i = []
+#        for j in range(len(params["groupLabels"])):
+#            numNonNaNs_i.append(np.count_nonzero(~np.isnan(quantMatrixFiltered[i, params["groups"][i]]), axis = 0))
+#        print(numNonNaNs_i)
+#        
+#    for i in range(len(params["groupLabels"])):
+#        numNonNaNsGroups.extend(np.count_nonzero(~np.isnan(quantMatrixFiltered[:, params["groups"][i]]), axis = 0)[np.newaxis,:])
+#    
+#    numNonNaNsGroups = np.concatenate(numNonNaNsGroups)
+
     numNonNaNs = np.count_nonzero(~np.isnan(quantMatrixFiltered), axis = 0)[np.newaxis,:]
+
+    # Edit to make imputed diffs for each groups
     if params["groupNorm"] == True:
-        xImps = imputeValues(quantMatrixFiltered, geoAvgQuantRowGroup, np.log10(geoAvgQuantRowGroup))
+        xImpsGroups = []
+        for i in range(len(params["groupLabels"])):
+            xImps_i = imputeValues(quantMatrixFiltered[:, params["groups"][i]], 
+                                   geoAvgQuantRow[params["groups"][i]], 
+                                   np.log10(geoAvgQuantRow[params["groups"][i]]))
+            xImpsGroups.append(xImps_i)
+        xImpsGroups = np.concatenate(xImpsGroups, axis = 1)
+        xImps = xImpsGroups
         imputedDiffs.extend((xImps - quantMatrixFiltered)[(~np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
     else:
         xImps = imputeValues(quantMatrixFiltered, geoAvgQuantRow, np.log10(geoAvgQuantRow))
         imputedDiffs.extend((xImps - quantMatrixFiltered)[(~np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
-        
-
+    
+    #print(np.shape(xImpsGroups) == np.shape(xImps))
+    #print(xImpsGroups == xImps)
+    
+    
     #imputedVals.extend(xImps[(np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
   if params["knownGroups"] == True:
       for i in range(len(observedXICValuesGroups)):
@@ -182,10 +214,10 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   #################################################################
   # CHANGE THIS TO INCORPORATE MULTIPLE muFeatureDiff? 2019-04-29 #
   #################################################################
-  
+  #print(len(imputedDiffs))
   fitDist(imputedDiffs, funcHypsec, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
   fitDist(protStdevsInGroup, funcGamma, "stdev log10(protein diff in group)", ["shapeInGroupStdevs", "scaleInGroupStdevs"], params, plot, x = np.arange(-0.1, 1.0, 0.005))
-  print(len(protStdevsInGroup))
+  #print(len(protStdevsInGroup))
   sigmaCandidates = np.arange(0.001, 3.0, 0.001)
   gammaCandidates = funcGamma(sigmaCandidates, params["shapeInGroupStdevs"], params["scaleInGroupStdevs"])
   support = np.where(gammaCandidates > max(gammaCandidates) * 0.01)

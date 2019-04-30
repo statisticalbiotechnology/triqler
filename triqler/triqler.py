@@ -105,6 +105,8 @@ def parseArgs():
 def runTriqler(params, triqlerInputFile, triqlerOutputFile):  
   print("""
         THIS IS RUN WITH DIFFERENT PRIORS FOR EACH SAMPLE!
+        
+        ImputedDiffsGroups for each group!
         """)
   if not os.path.isfile(triqlerInputFile):
     sys.exit("Could not locate input file %s. Check if the path to the input file is correct." % triqlerInputFile)

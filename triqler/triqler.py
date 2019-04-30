@@ -72,12 +72,15 @@ def parseArgs():
   apars.add_argument('--write_spectrum_quants',
                      help='Write quantifications for consensus spectra. Only works if consensus spectrum index are given in input.',
                      action='store_true')
-  
+  #### ADDED ARGUMENTS
   apars.add_argument('--returnDistributions',
                      help='Return posterior distributions for proteins and group.',
                      default = True) 
   apars.add_argument('--knownGroups',
                      help='Use condition-wise (group-wise) priors if groups are known.',
+                     default = True)
+  apars.add_argument('--groupNorm',
+                     help='Use group-wise normalization when assigning group priors.',
                      default = True)                     
   # ------------------------------------------------
   args = apars.parse_args()
@@ -92,6 +95,7 @@ def parseArgs():
   params['writeSpectrumQuants'] = args.write_spectrum_quants
   params['returnDistributions'] = args.returnDistributions
   params['knownGroups'] = args.knownGroups
+  params['groupNorm'] = args.groupNorm
 
   if params['minSamples'] < 2:
     sys.exit("ERROR: --min_samples should be >= 2")

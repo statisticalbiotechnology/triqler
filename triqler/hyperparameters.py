@@ -164,7 +164,6 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     numNonNaNs = np.count_nonzero(~np.isnan(quantMatrixFiltered), axis = 0)[np.newaxis,:]
 
     # Edit to make imputed diffs for each groups
-    
     if params["groupNorm"] == True:
         xImpsGroups = []
         for i in range(len(params["groupLabels"])):
@@ -182,7 +181,6 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
         
         # Global features
         imputedDiffs.extend((xImps - quantMatrixFiltered)[(~np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
-        
     else:
         xImps = imputeValues(quantMatrixFiltered, geoAvgQuantRow, np.log10(geoAvgQuantRow))
         imputedDiffs.extend((xImps - quantMatrixFiltered)[(~np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])

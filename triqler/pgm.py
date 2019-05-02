@@ -141,10 +141,12 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
 
   logGeoAvgs = np.log10([parsers.geomAvg(row) for row in quantMatrix])
   featDiffs = np.log10(quantMatrix) - logGeoAvgs[:,np.newaxis] 
-  
-  featDiffs = featDiffsGroups #<---------------------------------------- NOTE THIS!!!!
+  #print(np.shape(featDiffs) == np.shape(featDiffsGroups))
+  #print(featDiffs == featDiffsGroups)
+  #print(featDiffs)
+  #featDiffs = featDiffsGroups #<---------------------------------------- NOTE THIS!!!!
   pMissingGeomAvg = pMissing(logGeoAvgs, params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | t_grn = 1)
-  
+  #print(featDiffs)
   
   #print(logGeoAvgsGroups) 
   #print(params[
@@ -196,6 +198,9 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
                                                           params["muFeatureDiff"+params["groupLabels"][i]], 
                                                           params["sigmaFeatureDiff"+params["groupLabels"][i]])
   pQuantIncorrectIdGroups = np.concatenate(pQuantIncorrectIdGroups, axis = 1)
+  
+  #print(pQuantIncorrectId)
+  #print(pQuantIncorrectId)
   #print(np.shape(pQuantIncorrectIdGroups))
   #print(np.shape(pQuantIncorrectId))
   #print(np.shape(pQuantIncorrectId) == np.shape(pQuantIncorrectIdGroups))
@@ -211,7 +216,9 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
       #print(geoAvgQuantRow[params["groups"][i]])
       xImpsAllGroups[i] = imputeValues(np.array(quantMatrix)[:, params["groups"][i]],
                     geoAvgQuantRow[params["groups"][i]], params["proteinQuantCandidates"])
+      #print(geoAvgQuantRow[params["groups"][i]])
   xImpsAllGroups = np.concatenate(xImpsAllGroups, axis = 1)
+  #print(xImpsAllGroups)
   #print(np.shape(xImpsAllGroups))
   xImpsAll = imputeValues(quantMatrix, geoAvgQuantRow, params['proteinQuantCandidates'])
   #print(np.shape(xImpsAll))
@@ -232,13 +239,20 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   
   pDiffs = hyperparameters.funcHypsec(impDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | m_grn = 0, t_grn = 0)
   #print(np.shape(pDiffs))
-  
+#  pDiffsGroups = [[] for i in range(len(params["groupLabels"]))]
+#  for i in range(len(params["groupLabels"])):
+#      pDiffsGroups[i] = hyperparameters.funcHypsec(impDiffsGroups[:, params["groups"][i],:],
+#                  params["muFeatureDiff" + params["groupLabels"][i]],
+#                  params["sigmaFeatureDiff" + params["groupLabels"][i]])
+#  pDiffsGroups = np.concatenate(pDiffsGroups, axis = 1)
+#  
   pDiffsGroups = [[] for i in range(len(params["groupLabels"]))]
   for i in range(len(params["groupLabels"])):
-      pDiffsGroups[i] = hyperparameters.funcHypsec(impDiffsGroups[:, params["groups"][i],:],
+      pDiffsGroups[i] = hyperparameters.funcHypsec(impDiffs[:, params["groups"][i],:],
                   params["muFeatureDiff" + params["groupLabels"][i]],
                   params["sigmaFeatureDiff" + params["groupLabels"][i]])
   pDiffsGroups = np.concatenate(pDiffsGroups, axis = 1)
+  #print(pDiffsGroups)
   #print(np.shape(pDiffsGroups) == np.shape(pDiffs))
   
   #print(params["muFeatureDiff"]) #<--------------
@@ -290,7 +304,7 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
           
   #print(params.keys())
   #print(np.shape(params["proteinPriorGroups"])) 
-  
+  #print(params)
   #print(params["proteinPriorGroups"])
   #print(params[params["proteinPriorGroups"][1]])
   #print(params["proteinPrior"])
@@ -338,7 +352,7 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
                 else: #TRY TO UNDERSTAND THE RELATIONSHIP BETWEEN THIS AND HYPSEC DISTRIBUTION
                   if np.isnan(pMissingGeomAvgGroups[i][priorGroup]):
                       pMissingGeomAvgGroups[i][priorGroup] = 0 
-                  likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - identPEP) * (1.0 - linkPEP) + (1.0 - pMissingGeomAvgGroups[i][priorGroup]) * (pQuantIncorrectId[i][j] * identPEP * (1.0 - linkPEP) + linkPEP)
+                  likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - identPEP) * (1.0 - linkPEP) + (1.0 - pMissingGeomAvgGroups[i][priorGroup]) * (pQuantIncorrectIdGroups[i][j] * identPEP * (1.0 - linkPEP) + linkPEP)
                 if np.min(likelihood) == 0.0:
                   likelihood += np.nextafter(0,1)
         #likelihood = np.nan_to_num(likelihood)
@@ -418,8 +432,9 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
 
 def imputeValues(quantMatrix, proteinRatios, testProteinRatios):
   logIonizationEfficiencies = np.log10(quantMatrix) - np.log10(proteinRatios)
-  
+  #print(logIonizationEfficiencies)
   numNonZeros = np.count_nonzero(~np.isnan(logIonizationEfficiencies), axis = 1)[:,np.newaxis] - ~np.isnan(logIonizationEfficiencies)
+  #print(numNonZeros)
   np.nan_to_num(logIonizationEfficiencies, False)
   meanLogIonEff = (np.nansum(logIonizationEfficiencies, axis = 1)[:,np.newaxis] - logIonizationEfficiencies) / numNonZeros
   

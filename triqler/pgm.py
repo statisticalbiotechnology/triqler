@@ -225,6 +225,8 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   
   #print(np.shape(impDiffs))
   #print(np.shape(impDiffsGroups))
+  #print(np.shape(impDiffs) == np.shape(impDiffsGroups))
+  #print(np.shape(xImpsAll) == np.shape(xImpsAllGroups))
   #print(impDiffs)
   #print(impDiffsGroups)
   
@@ -309,47 +311,43 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
                 #print(pProteinQuant)
                 #raise ("NaN encountered in groupPrior")
             cnt += 1  
+            #################################################################################
+            # 2019-04-30 START TO CHANGE pMissingGroup, featDiffGroup xImpAllGroup etc etc. #
+            # I think params["muDetect" + params["groupLabels"][i]] exists
+            ##################################################################################
     for i, row in enumerate(quantMatrix):
-      linkPEP = quantRows[i].linkPEP[j]
-      identPEP = quantRows[i].identificationPEP[j]
-      if identPEP < 1.0:
-        pMissings = pMissing(xImpsAll[i,j,:], params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | m_grn = 1, t_grn = 0)
-        
-        if np.isnan(row[j]):
-          likelihood = pMissings * (1.0 - identPEP) * (1.0 - linkPEP) + pMissingGeomAvg[i] * (identPEP * (1.0 - linkPEP) + linkPEP)
-        else: #TRY TO UNDERSTAND THE RELATIONSHIP BETWEEN THIS AND HYPSEC DISTRIBUTION
-          likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - identPEP) * (1.0 - linkPEP) + (1.0 - pMissingGeomAvg[i]) * (pQuantIncorrectId[i][j] * identPEP * (1.0 - linkPEP) + linkPEP)
-        
-        if np.min(likelihood) == 0.0:
-          likelihood += np.nextafter(0,1)
+      for priorGroup, sampleInPrior in enumerate(params["groups"]):
+          if j in sampleInPrior: #Will be one for each sample... [s01r01, s01r02,... s02r01, ... s10r05]
+              """
+              NOTE THIS CODE WILL MAKE IT UPDATE likelihood original times the number of groups,
+              
+              """
+              linkPEP = quantRows[i].linkPEP[j]
+              identPEP = quantRows[i].identificationPEP[j]
+              if identPEP < 1.0:
+                pMissings = pMissing(xImpsAll[i,j,:],
+                                     params["muDetect"+params["groupLabels"][priorGroup]],
+                                     params["sigmaDetect"+params["groupLabels"][priorGroup]]) # Pr(f_grn = NaN | m_grn = 1, t_grn = 0)
+                #pMissings_pseudo = pMissing(xImpsAllGroups[i,j,:], params["muDetect"], params["sigmaDetect"])
+                #print(xImpsAllGroups[i,j,:])
+                if np.isnan(row[j]): 
+                  if np.isnan(pMissingGeomAvgGroups[i][priorGroup]): # IF THE GROUP MEAN IS NAN WE SET IT TO ZERO (parameter).
+                      pMissingGeomAvgGroups[i][priorGroup] = 0
+                  #print(pMissingGeomAvgGroups[i][priorGroup])
+                  likelihood = pMissings * (1.0 - identPEP) * (1.0 - linkPEP) + pMissingGeomAvgGroups[i][priorGroup] * (identPEP * (1.0 - linkPEP) + linkPEP)
+                else: #TRY TO UNDERSTAND THE RELATIONSHIP BETWEEN THIS AND HYPSEC DISTRIBUTION
+                  if np.isnan(pMissingGeomAvgGroups[i][priorGroup]):
+                      pMissingGeomAvgGroups[i][priorGroup] = 0 
+                  likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - identPEP) * (1.0 - linkPEP) + (1.0 - pMissingGeomAvgGroups[i][priorGroup]) * (pQuantIncorrectId[i][j] * identPEP * (1.0 - linkPEP) + linkPEP)
+                if np.min(likelihood) == 0.0:
+                  likelihood += np.nextafter(0,1)
         #likelihood = np.nan_to_num(likelihood)
-        '''
-        print("""
-              DEBUG MESSAGE!!!!!!!!!!!!!!!!!
-              """)
-        print("pMissings")
-        print(pMissings)
-        print("pDiffs[i,j,:]")
-        print(pDiffs[i,j,:])
-        print("identPEP")
-        print(identPEP)
-        print("linkPEP")
-        print(linkPEP)
-        print("pMissingGeomAvg[i]")
-        print(pMissingGeomAvg[i])
-        print("pQuantIncorrectId[i][j]")
-        print(pQuantIncorrectId[i][j])
-        print("""
-              END OF MESSAGE!!!!!!!!!!
-              """)
-        '''
-        if np.isnan(likelihood).sum() > 0:
-            print("NaN count: " + str(np.isnan(likelihood).sum()))
-            print(likelihood)
-            raise ("NaN encountered in likelihood computations")
-        pProteinQuant += np.log(likelihood)
+                if np.isnan(likelihood).sum() > 0:
+                    print("NaN count: " + str(np.isnan(likelihood).sum()))
+                    print(likelihood)
+                    raise ("NaN encountered in likelihood computations")
+                pProteinQuant += np.log(likelihood)
         #pProteinQuant = np.nan_to_num(pProteinQuant) # fix NaN issue in protein quants
-      
     pProteinQuant -= np.max(pProteinQuant)
     #print(pProteinQuant)
     pProteinQuant = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
@@ -359,6 +357,62 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
     eValue, confRegion = getPosteriorParams(params['proteinQuantCandidates'], pProteinQuant)
     #print(params['proteinQuantCandidates'])
     bayesQuantRow.append(eValue)
+    
+    ############################
+    # FOR NON GROUPED ##########
+    ############################
+    
+#    for i, row in enumerate(quantMatrix):
+#      
+#      linkPEP = quantRows[i].linkPEP[j]
+#      identPEP = quantRows[i].identificationPEP[j]
+#      if identPEP < 1.0:
+#        pMissings = pMissing(xImpsAll[i,j,:], params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | m_grn = 1, t_grn = 0)
+#        
+#        if np.isnan(row[j]):
+#          likelihood = pMissings * (1.0 - identPEP) * (1.0 - linkPEP) + pMissingGeomAvg[i] * (identPEP * (1.0 - linkPEP) + linkPEP)
+#        else: #TRY TO UNDERSTAND THE RELATIONSHIP BETWEEN THIS AND HYPSEC DISTRIBUTION
+#          likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - identPEP) * (1.0 - linkPEP) + (1.0 - pMissingGeomAvg[i]) * (pQuantIncorrectId[i][j] * identPEP * (1.0 - linkPEP) + linkPEP)
+#        
+#        if np.min(likelihood) == 0.0:
+#          likelihood += np.nextafter(0,1)
+#        #likelihood = np.nan_to_num(likelihood)
+#        '''
+#        print("""
+#              DEBUG MESSAGE!!!!!!!!!!!!!!!!!
+#              """)
+#        print("pMissings")
+#        print(pMissings)
+#        print("pDiffs[i,j,:]")
+#        print(pDiffs[i,j,:])
+#        print("identPEP")
+#        print(identPEP)
+#        print("linkPEP")
+#        print(linkPEP)
+#        print("pMissingGeomAvg[i]")
+#        print(pMissingGeomAvg[i])
+#        print("pQuantIncorrectId[i][j]")
+#        print(pQuantIncorrectId[i][j])
+#        print("""
+#              END OF MESSAGE!!!!!!!!!!
+#              """)
+#        '''
+#        if np.isnan(likelihood).sum() > 0:
+#            print("NaN count: " + str(np.isnan(likelihood).sum()))
+#            print(likelihood)
+#            raise ("NaN encountered in likelihood computations")
+#        pProteinQuant += np.log(likelihood)
+#        #pProteinQuant = np.nan_to_num(pProteinQuant) # fix NaN issue in protein quants
+#      
+#    pProteinQuant -= np.max(pProteinQuant)
+#    #print(pProteinQuant)
+#    pProteinQuant = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
+#    pProteinQuantsList.append(pProteinQuant)
+#    
+#    #print(len(params["proteinQuantCandidates"]))
+#    eValue, confRegion = getPosteriorParams(params['proteinQuantCandidates'], pProteinQuant)
+#    #print(params['proteinQuantCandidates'])
+#    bayesQuantRow.append(eValue)
   
   return pProteinQuantsList, bayesQuantRow
 

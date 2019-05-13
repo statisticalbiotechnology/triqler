@@ -25,9 +25,18 @@ def getPosteriors(quantRowsOrig, params, returnDistributions = False):
   else:
     return bayesQuantRow, muGroupDiffs, probsBelowFoldChange
 
+def getDummyPosteriors(params):
+  bayesQuantRow = [1.0 for g in params['groups'] for x in g]
+  numGroups = len(params['groups'])  
+  probsBelowFoldChange, muGroupDiffs = dict(), dict()
+  for groupId1, groupId2 in itertools.combinations(range(numGroups), 2):
+    probsBelowFoldChange[(groupId1,groupId2)], muGroupDiffs[(groupId1,groupId2)] = 1.0, 0.0
+  return bayesQuantRow, muGroupDiffs, probsBelowFoldChange
+  
 def getPosteriorProteinRatios(quantMatrix, quantRows, params, maxIterations = 50, bayesQuantRow = None):
   numSamples = len(quantMatrix[0])
   bayesQuantRow = np.array([1.0]*numSamples)
+  converged = False
   for iteration in range(maxIterations):  
     prevBayesQuantRow = np.copy(bayesQuantRow)
     pProteinQuantsList, bayesQuantRow = getPosteriorProteinRatio(quantMatrix, quantRows, bayesQuantRow, params)
@@ -36,8 +45,12 @@ def getPosteriorProteinRatios(quantMatrix, quantRows, params, maxIterations = 50
     
     diffInIteration = np.log10(prevBayesQuantRow) - np.log10(bayesQuantRow)
     if np.max(diffInIteration*diffInIteration) < 1e-4:
-      #print("Converged after iteration", iteration+1)
+      converged = True
+      #print("Converged after iteration", iteration+1, quantRows[0].protein[0])
       break
+  
+  if not converged:
+    print("Warning: failed to converge for protein", quantRows[0].protein[0])
   
   return pProteinQuantsList, bayesQuantRow
 
@@ -58,7 +71,6 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   pProteinQuantsList, bayesQuantRow = list(), list()
   for j in range(numSamples):
     pProteinQuant = params['proteinPrior'].copy() # log likelihood
-    
     for i, row in enumerate(quantMatrix):
       linkPEP = quantRows[i].linkPEP[j]
       identPEP = quantRows[i].identificationPEP[j]
@@ -72,7 +84,7 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
         if np.min(likelihood) == 0.0:
           likelihood += np.nextafter(0,1)
         pProteinQuant += np.log(likelihood)
-      
+        
     pProteinQuant -= np.max(pProteinQuant)
     pProteinQuant = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
     pProteinQuantsList.append(pProteinQuant)

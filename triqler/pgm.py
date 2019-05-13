@@ -59,36 +59,6 @@ def getPosteriorProteinRatios(quantMatrix, quantRows, params, maxIterations = 50
 
 def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   numSamples = len(quantMatrix[0])
-  
-  #for row in quantMatrix:
-  #    print(row)
-  #    print("NEXTROW")
-  
-  
-  #logGeoAvgsGroups = [list() for i in range(len(params["groupLabels"]))]
-  #featDiffsGroups = [list() for i in range(len(params["groupLabels"]))] #<------------- check this!
-  #pMissingGeomAvgGroups = [list() for i in range(len(params["groupLabels"]))]
-  
-  
-  #for row in quantMatrix:
-  #    for i in range(len(params["groupLabels"])):
-          #print(row[params["groups"][i]])
-          #print(row[params["groups"][i]])
-          #print(parsers.geomAvg(row[params["groups"][i]]))
-  #        logGeoAvgsGroups[i] = np.log10(parsers.geomAvg(row[params["groups"][i]]))
-  #        print(parsers.geomAvg(row[params["groups"][i]]))
-  #        featDiffsGroups[i] = np.log10(np.array(quantMatrix)[:,params["groups"][i]]) - logGeoAvgsGroups[i]
-  #        pMissingGeomAvgGroups[i] = pMissing(logGeoAvgsGroups[i], params["muDetect"+params["groupLabels"][i]],
-  #                             params["sigmaDetect"+params["groupLabels"][i]])
-  #    print("#############################################")
-  
-  # ABOVE IS HARD TO SEE WHAT IS GOING ON REDO IN MULTIPLE FOR-LOOPS
-  #for row in quantMatrix:
-  #    print(parsers.geomAvg(row))
-  #[print(parsers.geomAvg(row)) for row in quantMatrix]
-  
-  #print(np.shape(quantMatrix))
-  
 
   logGeoAvgsGroups = []
   for row in quantMatrix:
@@ -97,99 +67,27 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
           logGeoAvgs_i.append(np.log10(parsers.geomAvg(row[params["groups"][i]])))
       logGeoAvgsGroups.append(logGeoAvgs_i)
 
-  
-  # featDiffs should not need to be split, since they are quantMatrix - logGeoAvgsGroups
-  #for i in logGeoAvgsGroups:
-  #  for j in range(len(params["groupLabels"])):
-  
-  ########
-  # MATC logGEoAVGS to quantMatrix!!!! ###
-          ###
-
   featDiffsGroups = []
   for row in range(len(quantMatrix)):
       featDiffs_i = []
       for i in range(len(params["groupLabels"])):
-          #print("qMAT")
-          #print(np.log10(quantMatrix[row][params["groups"][i]]))
-          #print("logGeo")
-          #print(logGeoAvgsGroups[row][i])
-          #print(logGeoAvgsGroups[row][params["groups"][i]])
           featDiffs_i.append(np.log10(quantMatrix[row][params["groups"][i]]) - logGeoAvgsGroups[row][i])
       featDiffsGroups.append(np.concatenate(featDiffs_i, axis = 0))#.tolist())
   featDiffsGroups = np.array(featDiffsGroups)  
-  #print(featDiffsGroups)
-  #print("NEWLINE###################")   # I THINK THIS IS DONE!
 
   pMissingGeomAvgGroups = [[] for i in range(len(params["groupLabels"]))]
-  #print(pMissingGeomAvgGroups)
-  #print(logGeoAvgsGroups) 
-#  print(logGeoAvgs)
+
   for i in range(len(params["groupLabels"])):
-      #print(np.array(logGeoAvgsGroups)[:,i])
-      #print(pMissing(np.array(logGeoAvgsGroups)[:,i], 
-      #      params["muDetect"+params["groupLabels"][i]], 
-      #      params["sigmaDetect"+params["groupLabels"][i]]))
       pMissingGeomAvgGroups[i] = pMissing(np.array(logGeoAvgsGroups)[:,i], 
             params["muDetect"+params["groupLabels"][i]], 
             params["sigmaDetect"+params["groupLabels"][i]])
   pMissingGeomAvgGroups = np.array(pMissingGeomAvgGroups).T.tolist()
 
-  ############################################################
-  # DONE WITH  pMissingGeomAvg Prior Parameters 2019-04-29 ###
-  ############################################################ 
-
   logGeoAvgs = np.log10([parsers.geomAvg(row) for row in quantMatrix])
   featDiffs = np.log10(quantMatrix) - logGeoAvgs[:,np.newaxis] 
-  #print(np.shape(featDiffs) == np.shape(featDiffsGroups))
-  #print(featDiffs == featDiffsGroups)
-  #print(featDiffs)
   #featDiffs = featDiffsGroups #<---------------------------------------- NOTE THIS!!!!
   pMissingGeomAvg = pMissing(logGeoAvgs, params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | t_grn = 1)
-  #print(featDiffs)
-  
-  #print(logGeoAvgsGroups) 
-  #print(params[
 
-  #print(featDiffs == featDiffsGroups)
-  
-  #for i in range(len(logGeoAvgsGroups)):
-  #    print
-#  for i in range(len(params["groupLabels"])):
-#      print(params["sigmaDetect"+params["groupLabels"][i]])
-  
-  #for i in logGeoAvgsGroups:
-      
-  #print(np.shape(featDiffs) == np.shape(featDiffsGroups))
-  #  print(quantMatrix)
-#  print("qMatrix")   
-#  print(np.log10(quantMatrix))
-#  print("logGeos")
-#  print(logGeoAvgs[:,np.newaxis])    
-#  print("###############")
-#  print("NEEEXT")
-  #print(len(featDiffs[0]))
-  #print(len(featDiffs) == len(logGeoAvgs))
-  '''
-  print("""
-        CHECK params!!!!!
-        params["muDetect"] and params["sigmaDetect"]
-        """)
-  print(params["muDetect"])
-  print(params["sigmaDetect"])
-  print("""
-        ###############
-        END OF CHECKING
-        ###############
-        """)
-  #print(pMissingGeomAvg)
-  #print(featDiffsGroups)
-  #print("")
-  '''
-  #pQuantIncorrectId = hyperparameters.funcGamma(featDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | t_grn = 1)
-  #Changed below
-  #print(featDiffs == featDiffsGroups) # featDiffs is equal to featDiffsGroup!!!!
-  #print(featDiffs)
   pQuantIncorrectId = hyperparameters.funcHypsec(featDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | t_grn = 1)
   
   pQuantIncorrectIdGroups = [[] for i in range(len(params["groupLabels"]))]
@@ -199,119 +97,30 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
                                                           params["sigmaFeatureDiff"+params["groupLabels"][i]])
   pQuantIncorrectIdGroups = np.concatenate(pQuantIncorrectIdGroups, axis = 1)
   
-  #print(pQuantIncorrectId)
-  #print(pQuantIncorrectId)
-  #print(np.shape(pQuantIncorrectIdGroups))
-  #print(np.shape(pQuantIncorrectId))
-  #print(np.shape(pQuantIncorrectId) == np.shape(pQuantIncorrectIdGroups))
-  #pQuantIncorrectIdOld = hyperparameters.funcLogitNormal(np.log10(quantMatrix), params["muDetect"], params["sigmaDetect"], params["muXIC"], params["sigmaXIC"]) 
-  
-  #print(np.shape(quantMatrix))
-  #print(np.shape(geoAvgQuantRow))
-  
   xImpsAllGroups = [[] for i in range(len(params["groupLabels"]))]
   for i in range(len(params["groupLabels"])):
-      #print(type(quantMatrix))
-      #print(np.array(quantMatrix)[:, params["groups"][i]])
-      #print(geoAvgQuantRow[params["groups"][i]])
       xImpsAllGroups[i] = imputeValues(np.array(quantMatrix)[:, params["groups"][i]],
                     geoAvgQuantRow[params["groups"][i]], params["proteinQuantCandidates"])
-      #print(geoAvgQuantRow[params["groups"][i]])
   xImpsAllGroups = np.concatenate(xImpsAllGroups, axis = 1)
-  #print(xImpsAllGroups)
-  #print(np.shape(xImpsAllGroups))
+
   xImpsAll = imputeValues(quantMatrix, geoAvgQuantRow, params['proteinQuantCandidates'])
-  #print(np.shape(xImpsAll))
-  #print(np.shape(xImpsAll) == np.shape(xImpsAllGroups))
-  #print((xImpsAll) == (xImpsAllGroups))
+
   impDiffs = xImpsAll - np.log10(np.array(quantMatrix))[:,:,np.newaxis]
   impDiffsGroups = xImpsAllGroups - np.log10(np.array(quantMatrix))[:,:,np.newaxis]
-  #pDiffs = hyperparameters.funcGamma(impDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | m_grn = 0, t_grn = 0)
-  #Chenged below
-  #print(len(impDiffs[0]))
-  
-  #print(np.shape(impDiffs))
-  #print(np.shape(impDiffsGroups))
-  #print(np.shape(impDiffs) == np.shape(impDiffsGroups))
-  #print(np.shape(xImpsAll) == np.shape(xImpsAllGroups))
-  #print(impDiffs)
-  #print(impDiffsGroups)
   
   pDiffs = hyperparameters.funcHypsec(impDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | m_grn = 0, t_grn = 0)
-  #print(np.shape(pDiffs))
-#  pDiffsGroups = [[] for i in range(len(params["groupLabels"]))]
-#  for i in range(len(params["groupLabels"])):
-#      pDiffsGroups[i] = hyperparameters.funcHypsec(impDiffsGroups[:, params["groups"][i],:],
-#                  params["muFeatureDiff" + params["groupLabels"][i]],
-#                  params["sigmaFeatureDiff" + params["groupLabels"][i]])
-#  pDiffsGroups = np.concatenate(pDiffsGroups, axis = 1)
-#  
+
   pDiffsGroups = [[] for i in range(len(params["groupLabels"]))]
   for i in range(len(params["groupLabels"])):
       pDiffsGroups[i] = hyperparameters.funcHypsec(impDiffs[:, params["groups"][i],:],
                   params["muFeatureDiff" + params["groupLabels"][i]],
                   params["sigmaFeatureDiff" + params["groupLabels"][i]])
   pDiffsGroups = np.concatenate(pDiffsGroups, axis = 1)
-  #print(pDiffsGroups)
-  #print(np.shape(pDiffsGroups) == np.shape(pDiffs))
-  
-  #print(params["muFeatureDiff"]) #<--------------
-  
-  
-  #for i in range(len(params["groupLabels"])):
-  #    featDiffs[:,params["groups"][0]]) 
-  
-  ########################################
-  # CHANGING ABOVE PARAMETERS 2019-04-29 #
-  ########################################
-  
-  #print(np.shape(featDiffsGroups) == np.shape(featDiffs))
-  #print(len(featDiffsGroups))
-  
-  ##################################################################
-  # CONTINUE HERE AFTER FIXING muFeatureDiff in hyperparameters.py #
-  ##################################################################
-  
-#  pQuantIncorrectIdGroup = []
-#  for i in range(len(featDiffsGroups)):
-#      pQuantIncorrectIdGroup_i = []
-#      for j in range(len(params["groupLabels"])):
-#          print(featDiffsGroups[i][params["groups"][j]], params["muFeatureDiff"+params["groupLab]])
-#  
-#  print(params)
-#  
-  #######################3
-  
-  #print(hyperparameters.funcHypsec(featDiffsGroups[0][0:3], params["muFeatureDiff"], params["sigmaFeatureDiff"]))
-  
-  # fix mapping function for params["groups"] so that we can use different priors for differen j in for-loop below.
-  #val = 5
-  #a =  [[1,2,3],[4,5,6],[7,8,9], [5,5,5]]
-  #cnt = 0
-  #for i,j in enumerate(params["groups"]):
-  #for i,j in enumerate(a):
-      #print(i,j)
-  #    if val in j:
-  #         if cnt > 0:
- #              raise ("COUNT +1 <----------------------------------------")
- #          print(params["proteinPriorGroups"][i])
- #          cnt += 1 # count to check if more than one prior.
-  #val = 5 # j
-  #for i,j in enumerate(params["groups"]):
-  #    if val in j:
-  #        print(params["proteinPriorGroups"][i])
-          
-          
-  #print(params.keys())
-  #print(np.shape(params["proteinPriorGroups"])) 
-  #print(params)
-  #print(params["proteinPriorGroups"])
-  #print(params[params["proteinPriorGroups"][1]])
-  #print(params["proteinPrior"])
-  #print(type(params["groups"]))
+
   pProteinQuantsList, bayesQuantRow = list(), list()
   for j in range(numSamples):
-    #pProteinQuant = params['proteinPrior'].copy() # log likelihood <--------------------- not multiple priors
+    pProteinQuant = params['proteinPrior'].copy() # log likelihood <--------------------- not multiple priors
+    """
     #print(pProteinQuant)
     cnt = 0
     for priorGroup, sampleInPrior in enumerate(params["groups"]):
@@ -329,6 +138,8 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
             # 2019-04-30 START TO CHANGE pMissingGroup, featDiffGroup xImpAllGroup etc etc. #
             # I think params["muDetect" + params["groupLabels"][i]] exists
             ##################################################################################
+    """
+    '''
     for i, row in enumerate(quantMatrix):
       for priorGroup, sampleInPrior in enumerate(params["groups"]):
           if j in sampleInPrior: #Will be one for each sample... [s01r01, s01r02,... s02r01, ... s10r05]
@@ -371,62 +182,62 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
     eValue, confRegion = getPosteriorParams(params['proteinQuantCandidates'], pProteinQuant)
     #print(params['proteinQuantCandidates'])
     bayesQuantRow.append(eValue)
-    
+    '''
     ############################
     # FOR NON GROUPED ##########
     ############################
     
-#    for i, row in enumerate(quantMatrix):
-#      
-#      linkPEP = quantRows[i].linkPEP[j]
-#      identPEP = quantRows[i].identificationPEP[j]
-#      if identPEP < 1.0:
-#        pMissings = pMissing(xImpsAll[i,j,:], params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | m_grn = 1, t_grn = 0)
-#        
-#        if np.isnan(row[j]):
-#          likelihood = pMissings * (1.0 - identPEP) * (1.0 - linkPEP) + pMissingGeomAvg[i] * (identPEP * (1.0 - linkPEP) + linkPEP)
-#        else: #TRY TO UNDERSTAND THE RELATIONSHIP BETWEEN THIS AND HYPSEC DISTRIBUTION
-#          likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - identPEP) * (1.0 - linkPEP) + (1.0 - pMissingGeomAvg[i]) * (pQuantIncorrectId[i][j] * identPEP * (1.0 - linkPEP) + linkPEP)
-#        
-#        if np.min(likelihood) == 0.0:
-#          likelihood += np.nextafter(0,1)
-#        #likelihood = np.nan_to_num(likelihood)
-#        '''
-#        print("""
-#              DEBUG MESSAGE!!!!!!!!!!!!!!!!!
-#              """)
-#        print("pMissings")
-#        print(pMissings)
-#        print("pDiffs[i,j,:]")
-#        print(pDiffs[i,j,:])
-#        print("identPEP")
-#        print(identPEP)
-#        print("linkPEP")
-#        print(linkPEP)
-#        print("pMissingGeomAvg[i]")
-#        print(pMissingGeomAvg[i])
-#        print("pQuantIncorrectId[i][j]")
-#        print(pQuantIncorrectId[i][j])
-#        print("""
-#              END OF MESSAGE!!!!!!!!!!
-#              """)
-#        '''
-#        if np.isnan(likelihood).sum() > 0:
-#            print("NaN count: " + str(np.isnan(likelihood).sum()))
-#            print(likelihood)
-#            raise ("NaN encountered in likelihood computations")
-#        pProteinQuant += np.log(likelihood)
-#        #pProteinQuant = np.nan_to_num(pProteinQuant) # fix NaN issue in protein quants
-#      
-#    pProteinQuant -= np.max(pProteinQuant)
-#    #print(pProteinQuant)
-#    pProteinQuant = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
-#    pProteinQuantsList.append(pProteinQuant)
-#    
-#    #print(len(params["proteinQuantCandidates"]))
-#    eValue, confRegion = getPosteriorParams(params['proteinQuantCandidates'], pProteinQuant)
-#    #print(params['proteinQuantCandidates'])
-#    bayesQuantRow.append(eValue)
+    for i, row in enumerate(quantMatrix):
+      
+      linkPEP = quantRows[i].linkPEP[j]
+      identPEP = quantRows[i].identificationPEP[j]
+      if identPEP < 1.0:
+        pMissings = pMissing(xImpsAll[i,j,:], params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | m_grn = 1, t_grn = 0)
+        
+        if np.isnan(row[j]):
+          likelihood = pMissings * (1.0 - identPEP) * (1.0 - linkPEP) + pMissingGeomAvg[i] * (identPEP * (1.0 - linkPEP) + linkPEP)
+        else: #TRY TO UNDERSTAND THE RELATIONSHIP BETWEEN THIS AND HYPSEC DISTRIBUTION
+          likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - identPEP) * (1.0 - linkPEP) + (1.0 - pMissingGeomAvg[i]) * (pQuantIncorrectId[i][j] * identPEP * (1.0 - linkPEP) + linkPEP)
+        
+        if np.min(likelihood) == 0.0:
+          likelihood += np.nextafter(0,1)
+        #likelihood = np.nan_to_num(likelihood)
+        '''
+        print("""
+              DEBUG MESSAGE!!!!!!!!!!!!!!!!!
+              """)
+        print("pMissings")
+        print(pMissings)
+        print("pDiffs[i,j,:]")
+        print(pDiffs[i,j,:])
+        print("identPEP")
+        print(identPEP)
+        print("linkPEP")
+        print(linkPEP)
+        print("pMissingGeomAvg[i]")
+        print(pMissingGeomAvg[i])
+        print("pQuantIncorrectId[i][j]")
+        print(pQuantIncorrectId[i][j])
+        print("""
+              END OF MESSAGE!!!!!!!!!!
+              """)
+        '''
+        if np.isnan(likelihood).sum() > 0:
+            print("NaN count: " + str(np.isnan(likelihood).sum()))
+            print(likelihood)
+            raise ("NaN encountered in likelihood computations")
+        pProteinQuant += np.log(likelihood)
+        #pProteinQuant = np.nan_to_num(pProteinQuant) # fix NaN issue in protein quants
+      
+    pProteinQuant -= np.max(pProteinQuant)
+    #print(pProteinQuant)
+    pProteinQuant = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
+    pProteinQuantsList.append(pProteinQuant)
+    
+    #print(len(params["proteinQuantCandidates"]))
+    eValue, confRegion = getPosteriorParams(params['proteinQuantCandidates'], pProteinQuant)
+    #print(params['proteinQuantCandidates'])
+    bayesQuantRow.append(eValue)
   
   return pProteinQuantsList, bayesQuantRow
 

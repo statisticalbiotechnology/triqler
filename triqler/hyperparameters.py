@@ -42,7 +42,7 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     quantRows, quantMatrix = parsers.getQuantMatrix(quantRows)
     
     # GROUP BASED NORMALIZATION AND AVERAGING
-    #print(params["groupNorm"])
+
     if params["groupNorm"] == True:
         quantMatrixNormalizedGroup = []
         for row in quantMatrix:
@@ -59,20 +59,7 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
         quantMatrixNormalized = [parsers.geoNormalize(row) for row in quantMatrix]
         quantRowsCollection.append((quantRows, quantMatrix))
         geoAvgQuantRow = getProteinQuant(quantMatrixNormalized, quantRows)
-        
-    #print(np.array(quantMatrixNormalized)[:,0:3])
-    
-    #print(getProteinQuant(quantMatrixNormalized[0:3], quantRows))
-    #print(geoAvgQuantRow[params["groups"][0]]) 
-    #print(geoAvgQuantRow) #is np.array
-    #if params["knownGroups"] == True:
-      #params["muProteinGroups"] = ['muProteinGroup%s' % s for s in params["groupLabels"]] # CREATE DIFFERENT mu FOR GROUPS
-      #params["sigmaProteinGroups"] = ['sigmaProteinGroup%s' % s for s in params["groupLabels"]] # CREATE sigma FOR GROUPS
-      #for i in range(len(params["groupLabels"])):
-      #    print(params["muProteinGroups"][i])
-      #    print(params["sigmaProteinGroups"][i])
-      
-    #print(params["groups"])
+
     if params["knownGroups"] == True:
         if params["groupNorm"] == True:
             for i in range(len(params["groupLabels"])):
@@ -81,85 +68,34 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
             for i in range(len(params["groupLabels"])):
                 protQuantsGroups[i].extend([np.log10(x) for x in geoAvgQuantRow[params["groups"][i]] if not np.isnan(x)])    
     protQuants.extend([np.log10(x) for x in geoAvgQuantRow if not np.isnan(x)])
-    #print(len(protQuants))
-    #print(protQuants)
-    
+
     if params["groupNorm"] == True:
         args = parsers.getQuantGroups(geoAvgQuantRowGroup, params["groups"], np.log10)
     else:
         args = parsers.getQuantGroups(geoAvgQuantRow, params["groups"], np.log10)
 
-    #means = list()
+
     
     for group in args: # ALREADY SPLIT UP INTO GROUPS
       if np.count_nonzero(~np.isnan(group)) > 1:
         protDiffs.extend(group - np.mean(group))
         protStdevsInGroup.append(np.std(group))
-      #if np.count_nonzero(~np.isnan(group)) > 0:
-      #  means.append(np.mean(group))
-    
-    #if np.count_nonzero(~np.isnan(means)) > 1:
-    #  for mean in means:  
-    #    #protGroupDiffs.append(mean - np.mean(means))
-    #    protGroupDiffs.append(mean)
+
     
     quantMatrixFiltered = np.log10(np.array([x for x, y in zip(quantMatrix, quantRows) if y.combinedPEP < 1.0]))  
     
-    #[print(len(x)) for x, y in zip(quantMatrix, quantRows) if y.combinedPEP < 1.0]
-    #print(np.shape(np.array([x for x, y in zip(quantMatrix, quantRows) if y.combinedPEP < 1.0])))
     
     # GET observedXICValuesGroups for each group. Is this correct???
     if params["knownGroups"] == True:
-        #smurfVals = quantMatrixFiltered[~np.isnan(quantMatrixFiltered)]
-        #smurfComp = []
+
         for i in range(len(params["groupLabels"])):
             for j in range(len(quantMatrixFiltered)):
             #print(smurfVals)
                 observedXICValuesGroups[i].extend(quantMatrixFiltered[j][params["groups"][i]][~np.isnan(quantMatrixFiltered[j][params["groups"][i]])])
-                #smurfComp.extend(quantMatrixFiltered[i][params["groups"][i]][~np.isnan(quantMatrixFiltered[i][params["groups"][i]])])
-        #print(len(smurfVals))
-        #print(len(smurfComp))   
-        #if len(smurfVals) != len(smurfComp):
-        #    print(smurfVals)
-        #    print(smurfComp)
-    #print(quantMatrixFiltered)
-    #print(type((quantMatrixFiltered)))
-    #print(type((quantMatrixFiltered[0])))
-    #print(len(quantMatrixFiltered))
-    #print(len(quantMatrixFiltered[0]))
-    #print(quantMatrixFiltered[~np.isnan(quantMatrixFiltered)])
-    #print(quantMatrixFiltered[0][~np.isnan(quantMatrixFiltered[0])])
-  #  print(quantMatrixFiltered)
- #   print(quantMatrixFiltered[~np.isnan(quantMatrixFiltered)])
-    #print("BREAKPOINT")
-    #if params["knownGroups"] == True:
-    #    for i in range(len(params["groupLabels"])):
-    #        observedXICValuesGroups[i].extend
     
     observedXICValues.extend(quantMatrixFiltered[~np.isnan(quantMatrixFiltered)])
     
-    #print(len(observedXICValuesGroups[0]))
-    #print(len(observedXICValuesGroups[1]))
-    #print(len(observedXICValuesGroups[2]))
-    #print(len(observedXICValues))
-    
-    #print(observedXICValues)
-    #print((len(observedXICValuesGroups[0])+len(observedXICValuesGroups[1])+len(observedXICValuesGroups[2])) == (len(observedXICValues)))
-    # counts number of NaNs per run, if there is only 1 non NaN in the column, we cannot use it for estimating the imputedDiffs distribution
-    
-    #print(quantMatrixFiltered[:, params["groups"][0]])
-#    
-#    numNonNaNsGroups = []
-#    for i in range(len(quantMatrixFiltered)):
-#        numNonNaNs_i = []
-#        for j in range(len(params["groupLabels"])):
-#            numNonNaNs_i.append(np.count_nonzero(~np.isnan(quantMatrixFiltered[i, params["groups"][i]]), axis = 0))
-#        print(numNonNaNs_i)
-#        
-#    for i in range(len(params["groupLabels"])):
-#        numNonNaNsGroups.extend(np.count_nonzero(~np.isnan(quantMatrixFiltered[:, params["groups"][i]]), axis = 0)[np.newaxis,:])
-#    
-#    numNonNaNsGroups = np.concatenate(numNonNaNsGroups)
+
 
     numNonNaNs = np.count_nonzero(~np.isnan(quantMatrixFiltered), axis = 0)[np.newaxis,:]
 
@@ -185,8 +121,7 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
         xImps = imputeValues(quantMatrixFiltered, geoAvgQuantRow, np.log10(geoAvgQuantRow))
         imputedDiffs.extend((xImps - quantMatrixFiltered)[(~np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
     
-    #print(np.shape(xImpsGroups) == np.shape(xImps))
-    #print(xImpsGroups == xImps)
+
     
     
     #imputedVals.extend(xImps[(np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
@@ -197,27 +132,15 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
                                                  "muXIC"+params["groupLabels"][i],
                                                  "sigmaXIC"+params["groupLabels"][i]],params, plot) 
   fitLogitNormal(observedXICValues, ["muDetect", "sigmaDetect", "muXIC", "sigmaXIC"], params, plot) # NOW I AM HERE 2019-04-17
-  #print(params.keys())
-  #print(len(protQuants))
-  #print(protQuants)
-  #print(params.keys())
-  #print(params["fileList"])
+
   if params["knownGroups"] == True:
       for i in range(len(protQuantsGroups)):  
           fitDist(protQuantsGroups[i], funcHypsec, "log10(protein ratio) group"+params["groupLabels"][i],
                   ["muProteinGroup"+params["groupLabels"][i], "sigmaProteinGroup"+params["groupLabels"][i]],
                   params, plot)
-      #print(params["groupLabels"][i])
-      #print(params["muProteinGroup"+params["groupLabels"][i]])
-      #print(params["sigmaProteinGroup"+params["groupLabels"][i]])
+
   fitDist(protQuants, funcHypsec, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)#, THATAG = True)
-  #fitDist(protQuants, funcExpon, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)#, THATAG = True)
-  #print("GLOBAL")
-  #print(params["muProtein"])
-  #print(params["sigmaProtein"])
-  
-  #print(params["muDetect"])
-  #print(params["muProtein"])
+
   
   #################################################################
   # CHANGE THIS TO INCORPORATE MULTIPLE muFeatureDiff? 2019-04-29 #
@@ -253,38 +176,9 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
           params[params["proteinPriorGroups"][i]] = funcLogHypsec(params['proteinQuantCandidates'], 
                 params["muProteinGroup"+params["groupLabels"][i]], 
                 params["sigmaProteinGroup"+params["groupLabels"][i]])
-          #params[i] = funcLogHypsec(params['proteinQuantCandidates'], params["muProtein"], params["sigmaProtein"])
-      #print(params.keys())
-      #print(params["proteinPriorGroups"])
-  #print(params['proteinQuantCandidates'])
+
   params['proteinPrior'] = funcLogHypsec(params['proteinQuantCandidates'], params["muProtein"], params["sigmaProtein"]) ### HERE IS THE PRIOR for PROTEIN!
-  #print(params["proteinPriorGroups"][0])
-  #print(params[params["proteinPriorGroups"][0]])
-  #print(len(params[params["proteinPriorGroups"][0]]))
-  #print(params["proteinPriorGroups"][1])
-  #print(params[params["proteinPriorGroups"][1]])
-  #print(len(params[params["proteinPriorGroups"][1]]))
-  #print(params["proteinPriorGroups"][2])
-  #print(params[params["proteinPriorGroups"][2]])
-  #print(len(params[params["proteinPriorGroups"][2]]))
-  #print("GLOBAL")
-  #print(params["proteinPrior"])
-  #print(len(params["proteinPrior"]))
-  #ToDo
-  #NEED TO FIND DIFFERENT muProteins and sigmaProteins for different groups
-  
-  #params['proteinPrior'] = funcExpon(params['proteinQuantCandidates'], loc = -5000, shape = 100)
-  #print(params['proteinPrior'])
-  #np.savetxt("smurf.csv", params['proteinPrior'], delimiter = "\t")
-  #import pandas as pd
-  #smurfDF = pd.DataFrame(params["proteinPrior"])
-  #smurfax = smurfDF.plot()
-  #print(smurfDF.sum())
-  #smurfFig = smurfax.get_figure()
-  #smurfFig.savefig("smurffig.png")
-  #print("PRINTING POSTERIOR")
-  #print(params['proteinPrior'])
-  #print(len(params['proteinPrior']))
+
   
 
   # IDENTIFY WHICH VALUE ACTUALLY BECOMES THE PROTEIN QUANTIFICATION...
@@ -293,7 +187,6 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   else: # if we have technical replicates, we could use a delta function for the group scaling parameter to speed things up
     fitDist(protDiffs, funcHypsec, "log10(protein diff in group)", ["muInGroupDiffs", "sigmaInGroupDiffs"], params, plot)
     params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], params['muInGroupDiffs'], params['sigmaInGroupDiffs'])
-  #fitDist(protGroupDiffs, funcHypsec, "log10(protein diff between groups)", ["muProteinGroupDiffs", "sigmaProteinGroupDiffs"], params, plot)
   
 def fitLogitNormal(observedValues, varNames, params, plot):
   m = np.mean(observedValues)
@@ -306,9 +199,9 @@ def fitLogitNormal(observedValues, varNames, params, plot):
   
   varNames = varNames
   for varName, val in zip(varNames, popt):
-      #print(varName + " " + str(val))
+      
       params[varName] = val
-  # WHAT THE FUCK IS muDetect and does the PGM Go both ways?????
+
   
   #print("params[\"muDetectInit\"], params[\"sigmaDetectInit\"] = %f, %f" % (popt[0], popt[1]))
   print("params[\""+varNames[0]+"\"], params[\""+varNames[1]+"\"] = %f, %f" % (popt[0], popt[1]))

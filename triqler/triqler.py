@@ -79,9 +79,7 @@ def parseArgs():
   apars.add_argument('--knownGroups',
                      help='Use condition-wise (group-wise) priors if groups are known.',
                      default = True)
-  apars.add_argument('--groupNorm',
-                     help='Use group-wise normalization when assigning group priors.',
-                     default = True)                     
+               
   # ------------------------------------------------
   args = apars.parse_args()
   
@@ -95,7 +93,7 @@ def parseArgs():
   params['writeSpectrumQuants'] = args.write_spectrum_quants
   params['returnDistributions'] = args.returnDistributions
   params['knownGroups'] = args.knownGroups
-  params['groupNorm'] = args.groupNorm
+
 
   if params['minSamples'] < 2:
     sys.exit("ERROR: --min_samples should be >= 2")
@@ -103,11 +101,7 @@ def parseArgs():
   return args, params
   
 def runTriqler(params, triqlerInputFile, triqlerOutputFile):  
-  print("""
-        THIS IS RUN WITH DIFFERENT PRIORS FOR EACH SAMPLE!
-        
-        ImputedDiffsGroups for each group!
-        """)
+
   if not os.path.isfile(triqlerInputFile):
     sys.exit("Could not locate input file %s. Check if the path to the input file is correct." % triqlerInputFile)
   peptQuantRowFile = triqlerInputFile + ".pqr.tsv"

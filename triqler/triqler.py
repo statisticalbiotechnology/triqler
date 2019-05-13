@@ -75,7 +75,7 @@ def parseArgs():
   #### ADDED ARGUMENTS
   apars.add_argument('--returnDistributions',
                      help='Return posterior distributions for proteins and group.',
-                     default = True) 
+                     default = False) 
   apars.add_argument('--knownGroups',
                      help='Use condition-wise (group-wise) priors if groups are known.',
                      default = True)

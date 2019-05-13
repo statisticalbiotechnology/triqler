@@ -159,7 +159,7 @@ def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params, r
   
   nextScores = [x[0] for x in proteinOutputRows] + [np.nan]
   
-  if returnDistributions == True:
+  if params["returnDistributions"] == True:
       for i, (combinedPEP, _, protein, quantRows, evalFeatures, numPeptides, proteinIdPEP, quants, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs) in enumerate(proteinOutputRows):
         if 'pvalues_with_fc' in qvalMethod and np.abs(evalFeatures[-2]) < params['foldChangeEval']:
           continue
@@ -254,9 +254,27 @@ def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params, r
         if 'pvalues' in qvalMethod:
           combinedPEP = reportedPEPsPval[i]
     
+        if returnDistributions == True:    
+            # Protein
+            proteinQuantDistributionsShape = [[len(pProteinQuantsList), len(pProteinQuantsList[0])]] ##
+            proteinQuantDistributions = [protein] + ["%.4g" % pProteinQuantsList[i][j] for i in range(proteinQuantDistributionsShape[0][0]) for j in range(proteinQuantDistributionsShape[0][1])] ##
+        
+            # Protein Group
+            proteinGroupDistributionsShape = [[len(pProteinGroupQuants), len(pProteinGroupQuants[0])]] ##
+            proteinGroupDistributions = [protein] + ["%.4g" % pProteinGroupQuants[i][j] for i in range(proteinGroupDistributionsShape[0][0]) for j in range(proteinGroupDistributionsShape[0][1])] ##
+        
         outRows.append(["%.4g" % combinedPEP, protein, numPeptides, "%.4g" % proteinIdPEP] + ["%.4g" % x for x in evalFeatures] + ["%.4g" % x for x in quants] + [x.peptide for x in quantRows])
         nonPosteriorCols = len(["%.4g" % combinedPEP, protein, numPeptides, "%.4g" % proteinIdPEP] + ["%.4g" % x for x in evalFeatures] + ["%.4g" % x for x in quants] + [x.peptide for x in quantRows])
     
+        if returnDistributions == True:
+            # Protein
+            proteinDistributionsOutRows.append(proteinQuantDistributions) ##
+            
+            # Protein Group
+            proteinGroupDistributionsOutRows.append(proteinGroupDistributions) ##
+    
+            proteinQuantDistributionHeaders = ["posterior_%s_bin_%d" % (i,j) for i in parsers.getRunIds(params) for j in range(proteinQuantDistributionsShape[0][1])] ##
+            proteinGroupDistributionHeaders = ["posterior_%s_bin_%d" % (i,j) for i in params["groupLabels"] for j in range(proteinGroupDistributionsShape[0][1])] ##
   
   protOutputHeaders = ["posterior_error_prob", "protein", "num_peptides", "protein_id_posterior_error_prob"] + evalHeaders + parsers.getRunIds(params) + ["peptides"] #+ proteinQuantDistributionHeaders
   

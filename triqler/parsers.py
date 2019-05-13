@@ -93,7 +93,7 @@ class TriqlerInputRow(TriqlerInputRowBase):
   def toSimpleList(self):
     l = list(self)
     return l[:3] + l[6:-1] + l[-1]
-  
+
   def toString(self):
     return "\t".join(map(str, self.toList()))
 
@@ -104,9 +104,6 @@ def parseTriqlerInputFile(triqlerInputFile):
   intensityCol = 7 if hasLinkPEPs else 4
   seenPeptChargePairs = dict()
   for i, row in enumerate(reader):
-    if i % 1000000 == 0:
-      print("Reading row", i)
-    
     intensity = float(row[intensityCol])
     if intensity > 0.0:
       if hasLinkPEPs:
@@ -150,23 +147,15 @@ def parsePeptideQuantFile(peptideQuantFile):
       proteins = row[5+3*numRuns:]
     else:
       proteins = row[5+3*numRuns].split(";")
-    peptideQuantRows.append(PeptideQuantRow(float(row[0]), int(row[1]), int(row[2]), int(row[3]), np.array(map(float, row[4:4+numRuns])), np.array(map(float, row[4+numRuns:4+2*numRuns])), np.array(map(float, row[4+2*numRuns:4+3*numRuns])), row[4+3*numRuns], proteins))
+    peptideQuantRows.append(PeptideQuantRow(float(row[0]), int(row[1]), int(row[2]), int(row[3]), list(map(float, row[4:4+numRuns])), list(map(float, row[4+numRuns:4+2*numRuns])), list(map(float, row[4+2*numRuns:4+3*numRuns])), row[4+3*numRuns], proteins))
 
   runIdsWithGroup = header[4:4+numRuns]
-  maxGroups = len(set([runId.split(":")[0] for runId in runIdsWithGroup]))
+  maxGroups = max([int(runId.split(":")[0]) for runId in runIdsWithGroup])
   runIds = list()
   groups, groupLabels = [None] * maxGroups, [None] * maxGroups
-  groupNames = list()
   for fileIdx, runId in enumerate(runIdsWithGroup):
-    runIdSplitted = runId.split(":")
-    if len(runIdSplitted) == 3:
-      groupIdx, groupName, runId = runIdSplitted
-      groupIdx = int(groupIdx) - 1
-    else:
-      groupName, runId = runIdSplitted
-      if groupName not in groupNames:
-        groupNames.append(groupName)
-      groupIdx = groupNames.index(groupName)
+    groupIdx, groupName, runId = runId.split(":")
+    groupIdx = int(groupIdx) - 1
     runIds.append(runId)
     if groupName not in groupLabels:
       groupLabels[groupIdx] = groupName

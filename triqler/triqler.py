@@ -79,7 +79,9 @@ def parseArgs():
   apars.add_argument('--knownGroups',
                      help='Use condition-wise (group-wise) priors if groups are known.',
                      default = True)
-               
+  apars.add_argument('--groupNorm',
+                     help='Use group-wise normalization when assigning group priors.',
+                     default = False)                     
   # ------------------------------------------------
   args = apars.parse_args()
   
@@ -93,7 +95,7 @@ def parseArgs():
   params['writeSpectrumQuants'] = args.write_spectrum_quants
   params['returnDistributions'] = args.returnDistributions
   params['knownGroups'] = args.knownGroups
-
+  params['groupNorm'] = args.groupNorm
 
   if params['minSamples'] < 2:
     sys.exit("ERROR: --min_samples should be >= 2")
@@ -101,7 +103,11 @@ def parseArgs():
   return args, params
   
 def runTriqler(params, triqlerInputFile, triqlerOutputFile):  
-
+  print("""
+        THIS IS RUN WITH DIFFERENT PRIORS FOR EACH SAMPLE!
+        
+        ImputedDiffsGroups for each group!
+        """)
   if not os.path.isfile(triqlerInputFile):
     sys.exit("Could not locate input file %s. Check if the path to the input file is correct." % triqlerInputFile)
   peptQuantRowFile = triqlerInputFile + ".pqr.tsv"
@@ -112,7 +118,7 @@ def runTriqler(params, triqlerInputFile, triqlerOutputFile):
   else:
     qvalMethod = 'avg_pep'
     
-  selectComparisonBayesTmp = lambda proteinOutputRows, comparisonKey : selectComparisonBayes(proteinOutputRows, comparisonKey, params['t-test'])
+  selectComparisonBayesTmp = lambda proteinOutputRows, comparisonKey : selectComparisonBayes(proteinOutputRows, comparisonKey, params, params['t-test'])
   
   diff_exp.doDiffExp(params, peptQuantRows, triqlerOutputFile, getPickedProteinCalibration, selectComparisonBayesTmp, qvalMethod = qvalMethod, returnDistributions = params['returnDistributions'])
 
@@ -399,19 +405,31 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
   
   proteinOutputRowsUpdatedPEP = list()
   sumPEP = 0.0
-  for (linkPEP, protein, quantRows, numPeptides), (bayesQuantRow, muGroupDiffs, probsBelowFoldChange, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs), proteinPEP in zip(pickedProteinOutputRowsNew, posteriors, peps):
-    evalFeatures = getEvalFeatures(bayesQuantRow)
+  if params["returnDistributions"] == True:
+      for (linkPEP, protein, quantRows, numPeptides), (bayesQuantRow, muGroupDiffs, probsBelowFoldChange, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs), proteinPEP in zip(pickedProteinOutputRowsNew, posteriors, peps):
+        evalFeatures = getEvalFeatures(bayesQuantRow)
+    
+        if not params['t-test']:
+          evalFeatures[-1] = probsBelowFoldChange
+          evalFeatures[-2] = muGroupDiffs
+    
+    
+        if not params['t-test'] or sumPEP / (len(proteinOutputRowsUpdatedPEP) + 1) < 0.05:
+          #proteinOutputRowsUpdatedPEP.append([linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow])
+          proteinOutputRowsUpdatedPEP.append([linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs])
+          sumPEP += proteinPEP
+  else:  
+      for (linkPEP, protein, quantRows, numPeptides), (bayesQuantRow, muGroupDiffs, probsBelowFoldChange), proteinPEP in zip(pickedProteinOutputRowsNew, posteriors, peps):
+        evalFeatures = getEvalFeatures(bayesQuantRow)
+          
+        if not params['t-test']:
+          evalFeatures[-1] = probsBelowFoldChange
+          evalFeatures[-2] = muGroupDiffs
 
-    if not params['t-test']:
-      evalFeatures[-1] = probsBelowFoldChange
-      evalFeatures[-2] = muGroupDiffs
-
-
-    if not params['t-test'] or sumPEP / (len(proteinOutputRowsUpdatedPEP) + 1) < 0.05:
-      #proteinOutputRowsUpdatedPEP.append([linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow])
-      proteinOutputRowsUpdatedPEP.append([linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs])
-      sumPEP += proteinPEP
-  
+        if not params['t-test'] or sumPEP / (len(proteinOutputRowsUpdatedPEP) + 1) < 0.05:
+          proteinOutputRowsUpdatedPEP.append([linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow])
+          #proteinOutputRowsUpdatedPEP.append([linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs])
+          sumPEP += proteinPEP
   proteinOutputRowsUpdatedPEP = sorted(proteinOutputRowsUpdatedPEP, key = lambda x : (x[0], x[1]))
  # print(proteinOutputRowsUpdatedPEP)
   return proteinOutputRowsUpdatedPEP
@@ -423,19 +441,32 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
 ################################################################################
 ################################################################################
 """
-def selectComparisonBayes(proteinOutputRows, comparisonKey, tTest = False):
+def selectComparisonBayes(proteinOutputRows, comparisonKey, params, tTest = False):
   proteinOutputRowsUpdatedPEP = list()
-  for (linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs) in proteinOutputRows:
-    evalFeaturesNew = copy.deepcopy(evalFeatures)
-    evalFeaturesNew[-1] = evalFeatures[-1][comparisonKey] # probBelowFoldChange
-    evalFeaturesNew[-2] = evalFeatures[-2][comparisonKey] # log2_fold_change
-    if not tTest:
-      combinedPEP = combinePEPs(evalFeaturesNew[-1], proteinPEP)
-    else:
-      combinedPEP = evalFeaturesNew[-1]
-    
-    #proteinOutputRowsUpdatedPEP.append([combinedPEP, linkPEP, protein, quantRows, evalFeaturesNew, numPeptides, proteinPEP, bayesQuantRow])
-    proteinOutputRowsUpdatedPEP.append([combinedPEP, linkPEP, protein, quantRows, evalFeaturesNew, numPeptides, proteinPEP, bayesQuantRow, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs])
+  if params["returnDistributions"] == True:
+      for (linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs) in proteinOutputRows:
+        evalFeaturesNew = copy.deepcopy(evalFeatures)
+        evalFeaturesNew[-1] = evalFeatures[-1][comparisonKey] # probBelowFoldChange
+        evalFeaturesNew[-2] = evalFeatures[-2][comparisonKey] # log2_fold_change
+        if not tTest:
+          combinedPEP = combinePEPs(evalFeaturesNew[-1], proteinPEP)
+        else:
+          combinedPEP = evalFeaturesNew[-1]
+        
+        #proteinOutputRowsUpdatedPEP.append([combinedPEP, linkPEP, protein, quantRows, evalFeaturesNew, numPeptides, proteinPEP, bayesQuantRow])
+        proteinOutputRowsUpdatedPEP.append([combinedPEP, linkPEP, protein, quantRows, evalFeaturesNew, numPeptides, proteinPEP, bayesQuantRow, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs])
+  else:
+      for (linkPEP, protein, quantRows, evalFeatures, numPeptides, proteinPEP, bayesQuantRow) in proteinOutputRows:
+        evalFeaturesNew = copy.deepcopy(evalFeatures)
+        evalFeaturesNew[-1] = evalFeatures[-1][comparisonKey] # probBelowFoldChange
+        evalFeaturesNew[-2] = evalFeatures[-2][comparisonKey] # log2_fold_change
+        if not tTest:
+          combinedPEP = combinePEPs(evalFeaturesNew[-1], proteinPEP)
+        else:
+          combinedPEP = evalFeaturesNew[-1]
+        
+        proteinOutputRowsUpdatedPEP.append([combinedPEP, linkPEP, protein, quantRows, evalFeaturesNew, numPeptides, proteinPEP, bayesQuantRow])
+        #proteinOutputRowsUpdatedPEP.append([combinedPEP, linkPEP, protein, quantRows, evalFeaturesNew, numPeptides, proteinPEP, bayesQuantRow, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs])
   proteinOutputRowsUpdatedPEP = sorted(proteinOutputRowsUpdatedPEP, key = lambda x : (x[0], x[1]))
   return proteinOutputRowsUpdatedPEP
 

@@ -30,13 +30,15 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   protQuantRows = parsers.filterAndGroupPeptides(peptQuantRows, lambda x : not x.protein[0].startswith(params['decoyPattern']))
 
   imputedVals, imputedDiffs, observedXICValues, protQuants, protDiffs, protStdevsInGroup, protGroupDiffs = list(), list(), list(), list(), list(), list(), list()
-  observedXICValuesGroups = [list() for i in range(len(params["groupLabels"]))] # observedXICValuesGroups for each condition/group.
-  protQuantsGroups = [list() for i in range(len(params["groupLabels"]))] # ProtQuant for each condition/group.
+  
+  if params["knownGroups"] == True:
+      observedXICValuesGroups = [list() for i in range(len(params["groupLabels"]))] # observedXICValuesGroups for each condition/group.
+      protQuantsGroups = [list() for i in range(len(params["groupLabels"]))] # ProtQuant for each condition/group.
+      quantRowsCollectionGroup = list() # for group-wise samples.
+      imputedDiffsGroup = [[] for i in range(len(params["groupLabels"]))] # for imputedDiffsGroup_i
+
   quantRowsCollection = list()
-  quantRowsCollectionGroup = list() # for group-wise samples.
-  count = 0
-  imputedDiffsGroup = [[] for i in range(len(params["groupLabels"]))] # for imputedDiffsGroup_i
-      
+  
   for prot, quantRows in protQuantRows:
     
     quantRows, quantMatrix = parsers.getQuantMatrix(quantRows)
@@ -67,6 +69,7 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
         else:
             for i in range(len(params["groupLabels"])):
                 protQuantsGroups[i].extend([np.log10(x) for x in geoAvgQuantRow[params["groups"][i]] if not np.isnan(x)])    
+    
     protQuants.extend([np.log10(x) for x in geoAvgQuantRow if not np.isnan(x)])
 
     if params["groupNorm"] == True:
@@ -74,8 +77,6 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     else:
         args = parsers.getQuantGroups(geoAvgQuantRow, params["groups"], np.log10)
 
-
-    
     for group in args: # ALREADY SPLIT UP INTO GROUPS
       if np.count_nonzero(~np.isnan(group)) > 1:
         protDiffs.extend(group - np.mean(group))

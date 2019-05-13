@@ -11,7 +11,10 @@ from scipy.stats import f_oneway, kruskal
 from . import parsers
 from . import qvality
 
-def doDiffExp(params, peptQuantRows, outputFile, proteinQuantificationMethod, selectComparison, qvalMethod):    
+import os
+import shutil
+
+def doDiffExp(params, peptQuantRows, outputFile, proteinQuantificationMethod, selectComparison, qvalMethod, returnDistributions = True):    
   proteinModifier, getEvalFeatures, evalFunctions = getEvalFunctions(outputFile, params)
   
   proteinOutputRows = proteinQuantificationMethod(peptQuantRows, params, proteinModifier, getEvalFeatures)
@@ -25,20 +28,24 @@ def doDiffExp(params, peptQuantRows, outputFile, proteinQuantificationMethod, se
         proteinOutputFile = outputFile
       else:
         proteinOutputFile = outputFile.replace(outputFileExt, ".%dvs%d%s" % (groupId1 + 1, groupId2 + 1, outputFileExt if len(outputFileExt) > 1 else ""))
-      print(proteinOutputFile)
+      #print(proteinOutputFile)
       proteinOutputRowsGroup = selectComparison(proteinOutputRows, (groupId1, groupId2))
       if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
         evalFunctions = [lambda protein, evalFeatures : evalTruePositiveTtest(params["trueConcentrationsDict"], protein, groupId1, groupId2, evalFeatures[-2], params)]
-      getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params)
-  
+      #print(proteinOutputRowsGroup)
+      #print(proteinOutputFile)
+      #print(returnDistributions)
+      getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params, returnDistributions = returnDistributions)
+      np.savetxt("murf.csv", params["proteinPrior"], delimiter = "\t")
   if False:
     proteinOutputFile = outputFile
-    print(proteinOutputFile)
+    #print(proteinOutputFile)
     proteinOutputRowsGroup = selectComparison(proteinOutputRows, 'ANOVA')
     if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
       evalFunctions = [lambda protein, evalFeatures : evalTruePositiveANOVA(params["trueConcentrationsDict"], protein)]
-  getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params)
+  #getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params, returnDistributions = returnDistributions)
 
+   
 def getOutpuFileExtension(outputFile):
   fileName = outputFile.split("/")[-1]
   if "." in fileName:
@@ -95,7 +102,6 @@ def getPval(quants):
   if not np.isnan(anovaPvalue):
     return anovaPvalue
   else:
-    #print(quants)
     return 1.0
     
 def getFoldChange(quants, params):
@@ -115,8 +121,13 @@ def getFoldChange(quants, params):
 def getFc(quants, params, groupId1, groupId2):
   return np.log2(np.mean([quants[x] for x in params['groups'][groupId1]]) / np.mean([quants[x] for x in params['groups'][groupId2]]))
   
-def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params):
-  writer = csv.writer(open(outputFile, 'w'), delimiter = '\t')
+def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params, returnDistributions = True):
+  writer = csv.writer(open(outputFile, 'w'), delimiter = '\t') 
+  
+  if returnDistributions == True:
+      writerPosterior = csv.writer(open(outputFile[:-4]+"_posteriorProtein.csv", 'w'), delimiter = '\t') #  
+      writerPosteriorGroup = csv.writer(open(outputFile[:-4]+"_posteriorGroupp.csv", "w"), delimiter = "\t") #
+  
   plotCalibration = len(evalFunctions) > 0
   if plotCalibration:
     evalTruePositives = evalFunctions[0]
@@ -127,6 +138,14 @@ def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params):
     evalHeaders = ["log2_fold_change", "diff_exp_prob_" + str(params['foldChangeEval'])]
   
   outRows = list()
+
+  if returnDistributions == True:  
+      #Protein
+      proteinDistributionsOutRows = list() ##
+      
+      #Protein Group
+      proteinGroupDistributionsOutRows = list() ##
+  
   observedQvals, reportedQvals, reportedPEPs = list(), list(), list()
   sumPEP, fp, tp = 0.0, 1, 0
   decoys, targets = 1, 0
@@ -134,12 +153,12 @@ def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params):
   
   if 'pvalues' in qvalMethod:
     targetPvalues = list()
-    for i, (_, _, _, _, evalFeatures, _, _, _) in enumerate(proteinOutputRows):
+    for i, (_, _, _, _, evalFeatures, _, _, _, _, _, _) in enumerate(proteinOutputRows):
       targetPvalues.append(evalFeatures[-1])
     reportedQvalsPval, reportedPEPsPval = qvality.getQvaluesFromPvalues(targetPvalues, includePEPs = True)
   
   nextScores = [x[0] for x in proteinOutputRows] + [np.nan]
-  for i, (combinedPEP, _, protein, quantRows, evalFeatures, numPeptides, proteinIdPEP, quants) in enumerate(proteinOutputRows):
+  for i, (combinedPEP, _, protein, quantRows, evalFeatures, numPeptides, proteinIdPEP, quants, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs) in enumerate(proteinOutputRows):
     if 'pvalues_with_fc' in qvalMethod and np.abs(evalFeatures[-2]) < params['foldChangeEval']:
       continue
     
@@ -164,18 +183,41 @@ def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params):
         if 'pvalues' in qvalMethod:
           reportedQvals.append(reportedQvalsPval[i])
         else:
-          reportedQvals.append(qval)
-        
+          try:
+              reportedQvals.append(qval)
+          except:
+              reportedQvals.append(1337)
         if plotCalibration:
           observedQvals.append(observedQval)
       numTies = 1
     
     if 'pvalues' in qvalMethod:
       combinedPEP = reportedPEPsPval[i]
+
+    if returnDistributions == True:    
+        # Protein
+        proteinQuantDistributionsShape = [[len(pProteinQuantsList), len(pProteinQuantsList[0])]] ##
+        proteinQuantDistributions = [protein] + ["%.4g" % pProteinQuantsList[i][j] for i in range(proteinQuantDistributionsShape[0][0]) for j in range(proteinQuantDistributionsShape[0][1])] ##
+    
+        # Protein Group
+        proteinGroupDistributionsShape = [[len(pProteinGroupQuants), len(pProteinGroupQuants[0])]] ##
+        proteinGroupDistributions = [protein] + ["%.4g" % pProteinGroupQuants[i][j] for i in range(proteinGroupDistributionsShape[0][0]) for j in range(proteinGroupDistributionsShape[0][1])] ##
     
     outRows.append(["%.4g" % combinedPEP, protein, numPeptides, "%.4g" % proteinIdPEP] + ["%.4g" % x for x in evalFeatures] + ["%.4g" % x for x in quants] + [x.peptide for x in quantRows])
+    nonPosteriorCols = len(["%.4g" % combinedPEP, protein, numPeptides, "%.4g" % proteinIdPEP] + ["%.4g" % x for x in evalFeatures] + ["%.4g" % x for x in quants] + [x.peptide for x in quantRows])
+
+    if returnDistributions == True:
+        # Protein
+        proteinDistributionsOutRows.append(proteinQuantDistributions) ##
+        
+        # Protein Group
+        proteinGroupDistributionsOutRows.append(proteinGroupDistributions) ##
+
+        proteinQuantDistributionHeaders = ["posterior_%s_bin_%d" % (i,j) for i in parsers.getRunIds(params) for j in range(proteinQuantDistributionsShape[0][1])] ##
+        proteinGroupDistributionHeaders = ["posterior_%s_bin_%d" % (i,j) for i in params["groupLabels"] for j in range(proteinGroupDistributionsShape[0][1])] ##
   
-  protOutputHeaders = ["posterior_error_prob", "protein", "num_peptides", "protein_id_posterior_error_prob"] + evalHeaders + parsers.getRunIds(params) + ["peptides"]
+  protOutputHeaders = ["posterior_error_prob", "protein", "num_peptides", "protein_id_posterior_error_prob"] + evalHeaders + parsers.getRunIds(params) + ["peptides"] #+ proteinQuantDistributionHeaders
+  
   if plotCalibration:
     observedQvals = fdrsToQvals(observedQvals)
 
@@ -184,8 +226,26 @@ def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params):
       writer.writerow(["%.4g" % (observedQval), "%.4g" % (reportedQval)] + outRow)
   else:
     writer.writerow(["q_value"] + protOutputHeaders)
+    
+    if returnDistributions == True:
+        writerPosterior.writerow(["q_value", "protein"] + proteinQuantDistributionHeaders)
+        writerPosteriorGroup.writerow(["q_value", "protein"] + proteinGroupDistributionHeaders)
+        path = "posteriors"
+        if not os.path.exists(path):
+            os.mkdir(path)
+        else:
+            shutil.rmtree(path)
+            os.mkdir(path)
+            
     for outRow, reportedQval in zip(outRows, reportedQvals):
-      writer.writerow(["%.4g" % (reportedQval)] + outRow)
+      writer.writerow(["%.4g" % (reportedQval)] + outRow[:])
+      
+    if returnDistributions == True:     
+        for proteinDistributionOutRow, reportedQval in zip(proteinDistributionsOutRows, reportedQvals):
+          writerPosterior.writerow(["%.4g" % (reportedQval)] + proteinDistributionOutRow)
+        
+        for proteinGroupDistributionsOutRow, reportedQval in zip(proteinGroupDistributionsOutRows, reportedQvals):
+          writerPosteriorGroup.writerow(["%.4g" % (reportedQval)] + proteinGroupDistributionsOutRow)
 
 def fdrsToQvals(fdrs):
   qvals = [0] * len(fdrs)

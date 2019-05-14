@@ -78,7 +78,7 @@ def parseArgs():
                      default = False) 
   apars.add_argument('--knownGroups',
                      help='Use condition-wise (group-wise) priors if groups are known.',
-                     default = True)
+                     default = False)
   apars.add_argument('--groupNorm',
                      help='Use group-wise normalization when assigning group priors.',
                      default = False)                     

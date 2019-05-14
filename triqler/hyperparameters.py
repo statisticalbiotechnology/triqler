@@ -19,7 +19,7 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   # - FIX params["groupNorm"] = True, remove redundancy of geoAvgQuantRowGroup !!!!!!!!
   ########
     
-  params['proteinQuantCandidates'] = np.arange(-5.0, 5.0 + 1e-10, 0.01) # log10 of protein ratio  
+  params['proteinQuantCandidates'] = np.arange(-10.0, 10.0 + 1e-10, 0.01) # log10 of protein ratio  
   qc = params['proteinQuantCandidates']
   params['proteinDiffCandidates'] = np.linspace(2*qc[0], 2*qc[-1], len(qc)*2-1)
   
@@ -178,6 +178,8 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
                 params["muProteinGroup"+params["groupLabels"][i]], 
                 params["sigmaProteinGroup"+params["groupLabels"][i]])
 
+  params["muProtein"] = -5
+  print("NOTE NOTE NOTE new assignment of params['muProtein'] = " + str(params["muProtein"]))
   params['proteinPrior'] = funcLogHypsec(params['proteinQuantCandidates'], params["muProtein"], params["sigmaProtein"]) ### HERE IS THE PRIOR for PROTEIN!
 
   

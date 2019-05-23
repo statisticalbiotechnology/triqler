@@ -17,7 +17,6 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   params['proteinQuantCandidates'] = np.arange(-5.0, 5.0 + 1e-10, 0.01) # log10 of protein ratio  
   qc = params['proteinQuantCandidates']
   params['proteinDiffCandidates'] = np.linspace(2*qc[0], 2*qc[-1], len(qc)*2-1)
-  
   protQuantRows = parsers.filterAndGroupPeptides(peptQuantRows, lambda x : not x.protein[0].startswith(params['decoyPattern']))
   
   imputedVals, imputedDiffs, observedXICValues, protQuants, protDiffs, protStdevsInGroup, protGroupDiffs = list(), list(), list(), list(), list(), list(), list()
@@ -28,9 +27,9 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     quantMatrixNormalized = [parsers.geoNormalize(row) for row in quantMatrix]
     quantRowsCollection.append((quantRows, quantMatrix))
     geoAvgQuantRow = getProteinQuant(quantMatrixNormalized, quantRows)
-    
-    protQuants.extend([np.log10(x) for x in geoAvgQuantRow if not np.isnan(x)])
-
+        
+    #protQuants.extend([np.log10(x) for x in geoAvgQuantRow if not np.isnan(x)])
+    protQuants.extend([np.log10(np.nanmin(geoAvgQuantRow)) if np.isnan(x) else np.log10(x) for x in geoAvgQuantRow])
     args = parsers.getQuantGroups(geoAvgQuantRow, params["groups"], np.log10)
     #means = list()
     for group in args:
@@ -55,7 +54,7 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     #imputedVals.extend(xImps[(np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
   
   fitLogitNormal(observedXICValues, params, plot)
-  
+  print(len(protQuants))
   fitDist(protQuants, funcHypsec, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)
     
   fitDist(imputedDiffs, funcHypsec, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
@@ -137,6 +136,8 @@ def getProteinQuant(quantMatrixNormalized, quantRows):
   numSamples = len(quantMatrixNormalized[0])
   
   geoAvgQuantRow = np.array([0.0]*numSamples)
+  #for y in quantRows:
+  #    print(y)
   weights = np.array([[1.0 - y.combinedPEP for y in quantRows]] * numSamples).T
   weights[np.isnan(np.array(quantMatrixNormalized))] = np.nan
   

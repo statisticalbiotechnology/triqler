@@ -25,11 +25,18 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     quantRows, quantMatrix = parsers.getQuantMatrix(quantRows)
     
     quantMatrixNormalized = [parsers.geoNormalize(row) for row in quantMatrix]
+    
+    #PEPTIDE IMPUTATION
+    for i in range(len(quantMatrixNormalized)):
+        quantMatrixNormalized[i][np.isnan(quantMatrixNormalized[i])] = np.nanmin(quantMatrixNormalized)/2
+    
     quantRowsCollection.append((quantRows, quantMatrix))
     geoAvgQuantRow = getProteinQuant(quantMatrixNormalized, quantRows)
         
-    #protQuants.extend([np.log10(x) for x in geoAvgQuantRow if not np.isnan(x)])
-    protQuants.extend([np.log10(np.nanmin(geoAvgQuantRow)) if np.isnan(x) else np.log10(x) for x in geoAvgQuantRow])
+    protQuants.extend([np.log10(x) for x in geoAvgQuantRow if not np.isnan(x)])
+    # PROTEIN IMPUTATION
+    #protQuants.extend([np.log10(np.nanmin(geoAvgQuantRow)) if np.isnan(x) else np.log10(x) for x in geoAvgQuantRow])
+    
     args = parsers.getQuantGroups(geoAvgQuantRow, params["groups"], np.log10)
     #means = list()
     for group in args:
@@ -134,7 +141,6 @@ def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
 # this is an optimized version of applying parsers.weightedGeomAvg to each of the columns separately
 def getProteinQuant(quantMatrixNormalized, quantRows):
   numSamples = len(quantMatrixNormalized[0])
-  
   geoAvgQuantRow = np.array([0.0]*numSamples)
   #for y in quantRows:
   #    print(y)

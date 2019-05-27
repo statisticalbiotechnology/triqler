@@ -50,8 +50,9 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   
   pQuantIncorrectId = hyperparameters.funcHypsec(featDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | t_grn = 1)
   #pQuantIncorrectIdOld = hyperparameters.funcLogitNormal(np.log10(quantMatrix), params["muDetect"], params["sigmaDetect"], params["muXIC"], params["sigmaXIC"]) 
-  
+
   xImpsAll = imputeValues(quantMatrix, geoAvgQuantRow, params['proteinQuantCandidates'])
+
   impDiffs = xImpsAll - np.log10(np.array(quantMatrix))[:,:,np.newaxis]
   pDiffs = hyperparameters.funcHypsec(impDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | m_grn = 0, t_grn = 0)
   
@@ -62,19 +63,29 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
     for i, row in enumerate(quantMatrix):
       linkPEP = quantRows[i].linkPEP[j]
       identPEP = quantRows[i].identificationPEP[j]
+      #print(j)
       if identPEP < 1.0:
-        pMissings = pMissing(xImpsAll[i,j,:], params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | m_grn = 1, t_grn = 0)
+        pMissings = pMissing(xImpsAll[i,j,:], params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | m_grn = 1, t_grn = 0)    
+        #print(np.shape(row[j]))
+        #print(np.shape(pMissings))
         if np.isnan(row[j]):
           likelihood = pMissings * (1.0 - identPEP) * (1.0 - linkPEP) + pMissingGeomAvg[i] * (identPEP * (1.0 - linkPEP) + linkPEP)
+          
+          #np.savetxt("foo"+str(i)+".csv", likelihood, delimiter=",")
+          
+          # likelihood = min/2 av ngt....
+          #print(likelihood)
         else:
           likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - identPEP) * (1.0 - linkPEP) + (1.0 - pMissingGeomAvg[i]) * (pQuantIncorrectId[i][j] * identPEP * (1.0 - linkPEP) + linkPEP)
         
         if np.min(likelihood) == 0.0:
           likelihood += np.nextafter(0,1)
         pProteinQuant += np.log(likelihood)
-      
+    #print(np.shape(pProteinQuant))
     pProteinQuant -= np.max(pProteinQuant)
-    pProteinQuant = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
+    #pProteinQuant = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
+    pProteinQuant = 10**pProteinQuant / np.sum(10**(pProteinQuant))
+    #np.savetxt("foo"+str(i)+".csv", pProteinQuant, delimiter=",")
     pProteinQuantsList.append(pProteinQuant)
     
     eValue, confRegion = getPosteriorParams(params['proteinQuantCandidates'], pProteinQuant)
@@ -86,10 +97,12 @@ def imputeValues(quantMatrix, proteinRatios, testProteinRatios):
   logIonizationEfficiencies = np.log10(quantMatrix) - np.log10(proteinRatios)
   
   numNonZeros = np.count_nonzero(~np.isnan(logIonizationEfficiencies), axis = 1)[:,np.newaxis] - ~np.isnan(logIonizationEfficiencies)
-  np.nan_to_num(logIonizationEfficiencies, False)
-  meanLogIonEff = (np.nansum(logIonizationEfficiencies, axis = 1)[:,np.newaxis] - logIonizationEfficiencies) / numNonZeros
   
+  np.nan_to_num(logIonizationEfficiencies, False)
+  
+  meanLogIonEff = (np.nansum(logIonizationEfficiencies, axis = 1)[:,np.newaxis] - logIonizationEfficiencies) / numNonZeros
   logImputedVals = np.tile(meanLogIonEff[:, :, np.newaxis], (1, 1, len(testProteinRatios))) + testProteinRatios
+
   return logImputedVals
 
 def pMissing(x, muLogit, sigmaLogit):

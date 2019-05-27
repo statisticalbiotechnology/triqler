@@ -27,8 +27,8 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     quantMatrixNormalized = [parsers.geoNormalize(row) for row in quantMatrix]
     
     #PEPTIDE IMPUTATION
-    for i in range(len(quantMatrixNormalized)):
-        quantMatrixNormalized[i][np.isnan(quantMatrixNormalized[i])] = np.nanmin(quantMatrixNormalized)/2
+    #for i in range(len(quantMatrixNormalized)):
+    #    quantMatrixNormalized[i][np.isnan(quantMatrixNormalized[i])] = np.nanmin(quantMatrixNormalized)/2
     
     quantRowsCollection.append((quantRows, quantMatrix))
     geoAvgQuantRow = getProteinQuant(quantMatrixNormalized, quantRows)
@@ -52,6 +52,7 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     #    protGroupDiffs.append(mean)
     
     quantMatrixFiltered = np.log10(np.array([x for x, y in zip(quantMatrix, quantRows) if y.combinedPEP < 1.0]))  
+    #print(np.shape(quantMatrixFiltered))
     observedXICValues.extend(quantMatrixFiltered[~np.isnan(quantMatrixFiltered)])
     
     # counts number of NaNs per run, if there is only 1 non NaN in the column, we cannot use it for estimating the imputedDiffs distribution
@@ -59,9 +60,9 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     xImps = imputeValues(quantMatrixFiltered, geoAvgQuantRow, np.log10(geoAvgQuantRow))
     imputedDiffs.extend((xImps - quantMatrixFiltered)[(~np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
     #imputedVals.extend(xImps[(np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
-  
+   
   fitLogitNormal(observedXICValues, params, plot)
-  print(len(protQuants))
+ 
   fitDist(protQuants, funcHypsec, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)
     
   fitDist(imputedDiffs, funcHypsec, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)

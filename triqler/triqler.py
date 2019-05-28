@@ -2,7 +2,7 @@ from __future__ import print_function
 
 """triqler.triqler: provides entry point main()."""
 
-__version__ = "0.1.4"
+__version__ = "0.2.0"
 
 import sys
 import os

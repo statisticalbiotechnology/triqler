@@ -1,3 +1,8 @@
+v0.02
+* Fixed empty columns as extra proteins issue (#4)
+* Improved logging messages
+* Optimizations for very large datasets. Replaced some operations on python lists by their numpy equivalents to speed up calculation on larger datasets. Also, we now skip the posterior calculation for proteins with identification PEP = 1.0, since they will never be differentially abundant anyway.
+
 v0.01.4
 * Fixed windows multiprocessing error more elegantly (#2)
 * Suppressed warnings from child processes (#3)

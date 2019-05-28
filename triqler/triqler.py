@@ -23,7 +23,7 @@ from . import diff_exp
 
 def main():
   print('''Triqler version %s
-Copyright (c) 2018 Matthew The. All rights reserved.
+Copyright (c) 2018-2019 Matthew The. All rights reserved.
 Written by Matthew The (matthew.the@scilifelab.se) in the
 School of Engineering Sciences in Chemistry, Biotechnology and Health at the 
 Royal Institute of Technology in Stockholm.
@@ -120,8 +120,9 @@ def convertTriqlerInputToPeptQuantRows(triqlerInputFile, peptQuantRowFile, param
     
     peptideQuantRows = updateIdentPEPs(peptideQuantRows, params['decoyPattern'], params['hasLinkPEPs'])
     
-    print("Writing spectrum quant rows to file")
     specQuantRowFile = triqlerInputFile + ".sqr.tsv"
+    print("Writing spectrum quant rows to file:", specQuantRowFile)
+
     printPeptideQuantRows(specQuantRowFile, parsers.getRunIds(params), peptideQuantRows)
   
   spectrumToFeatureMatch, featureClusterRows, intensityDiv = selectBestFeaturesPerRunAndSpectrum(peptQuantRowMap, getPEPFromScore, params)
@@ -132,7 +133,7 @@ def convertTriqlerInputToPeptQuantRows(triqlerInputFile, peptQuantRowFile, param
   
   peptideQuantRows = updateIdentPEPs(peptideQuantRows, params['decoyPattern'], params['hasLinkPEPs'])
   
-  print("Writing peptide quant rows to file")
+  print("Writing peptide quant rows to file:", peptQuantRowFile)
   printPeptideQuantRows(peptQuantRowFile, parsers.getRunIds(params), peptideQuantRows)
   
   return peptideQuantRows

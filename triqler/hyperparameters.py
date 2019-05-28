@@ -85,6 +85,13 @@ def fitLogitNormal(observedValues, params, plot):
   bins = bins[:-1]
   popt, _ = curve_fit(funcLogitNormal, bins, vals, p0 = (m, s, m - s, s))
   
+  if popt[0] < popt[2] - 5*popt[3] or popt[0] > popt[2] + 5*popt[3]:
+    print("  Warning: muDetect outside of expected region:", popt[0], " setting to default value of muXIC - 1.0 =", popt[2] - 1.0)
+    popt[0] = popt[2] - 1.0
+  if popt[1] < 0 or popt[1] > 2.0:
+    print("  Warning: sigmaDetect outside of expected region:" , popt[1], " setting to default value of 0.3")
+    popt[1] = 0.3
+  
   #print("  params[\"muDetectInit\"], params[\"sigmaDetectInit\"] = %f, %f" % (popt[0], popt[1]))
   print("  params[\"muDetect\"], params[\"sigmaDetect\"] = %f, %f" % (popt[0], popt[1]))
   print("  params[\"muXIC\"], params[\"sigmaXIC\"] = %f, %f" % (popt[2], popt[3]))

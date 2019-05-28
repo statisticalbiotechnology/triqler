@@ -14,6 +14,7 @@ from . import hyperparameters
 
 def getPosteriors(quantRowsOrig, params, returnDistributions = False):
   quantRows, quantMatrix = parsers.getQuantMatrix(quantRowsOrig)
+  params['maxLikelihood'] = 0.1 #Initial maxposterior for nan likelihood computations.
   #print(quantRows)
   pProteinQuantsList, bayesQuantRow = getPosteriorProteinRatios(quantMatrix, quantRows, params)
   pProteinGroupQuants = getPosteriorProteinGroupRatios(pProteinQuantsList, bayesQuantRow, params)
@@ -45,6 +46,10 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   numSamples = len(quantMatrix[0])
   
   logGeoAvgs = np.log10([parsers.geomAvg(row) for row in quantMatrix])
+  
+  #for row in quantMatrix:
+  #    print(row.sum())
+      
   featDiffs = np.log10(quantMatrix) - logGeoAvgs[:,np.newaxis]
   pMissingGeomAvg = pMissing(logGeoAvgs, params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | t_grn = 1)
   
@@ -71,15 +76,24 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
         #print(np.shape(pMissings))
         if np.isnan(row[j]):
           likelihood = pMissings * (1.0 - identPEP) * (1.0 - linkPEP) + pMissingGeomAvg[i] * (identPEP * (1.0 - linkPEP) + linkPEP)
-          likelihood = 100*likelihood
+          #print(identPEP)
+          #likelihood = (pMissings + pMissingGeomAvg[i])*params["maxLikelihood"]*0.5
+          #print(identPEP)
+          #debugPRINT = pMissings * (1.0 - identPEP) * (1.0 - linkPEP)
+          #debugging = pMissingGeomAvg[i] * (identPEP * (1.0 - linkPEP) + linkPEP)
+          #print((debugging))
+          #likelihood = 100*likelihood
           #print(pMissings.sum())
-          #np.savetxt("foo_nan"+str(i)+".csv", likelihood, delimiter=",")
-          
+          np.savetxt("foo_nan"+str(i)+".csv", likelihood, delimiter=",")
+          #np.savetxt("foo_nan_pmiss"+str(i)+".csv", debugPRINT, delimiter=",")
+          #np.savetxt("foo_nan_pmissGeo"+str(i)+".csv", debugging, delimiter=",")
           # likelihood = min/2 av ngt....
           #print(likelihood)
         else:
           likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - identPEP) * (1.0 - linkPEP) + (1.0 - pMissingGeomAvg[i]) * (pQuantIncorrectId[i][j] * identPEP * (1.0 - linkPEP) + linkPEP)
-          #np.savetxt("foo_nonan"+str(i)+".csv", likelihood, delimiter=",")
+          #if max(likelihood) > params["maxLikelihood"] # COOOOONTINUE HERE
+          #print("max:" + str(max(likelihood)))
+          np.savetxt("foo_likelihood"+str(i)+".csv", likelihood, delimiter=",")
           #print(likelihood)
         if np.min(likelihood) == 0.0:
           likelihood += np.nextafter(0,1)
@@ -98,12 +112,15 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
 
 def imputeValues(quantMatrix, proteinRatios, testProteinRatios):
   logIonizationEfficiencies = np.log10(quantMatrix) - np.log10(proteinRatios)
-  
+  #print(logIonizationEfficiencies)
   numNonZeros = np.count_nonzero(~np.isnan(logIonizationEfficiencies), axis = 1)[:,np.newaxis] - ~np.isnan(logIonizationEfficiencies)
+  #print(np.shape(numNonZeros))
+  num = np.zeros(np.shape(numNonZeros))+np.shape(numNonZeros)[1]
   
   np.nan_to_num(logIonizationEfficiencies, False)
   
-  meanLogIonEff = (np.nansum(logIonizationEfficiencies, axis = 1)[:,np.newaxis] - logIonizationEfficiencies) / numNonZeros
+  #meanLogIonEff = (np.nansum(logIonizationEfficiencies, axis = 1)[:,np.newaxis] - logIonizationEfficiencies) / numNonZeros
+  meanLogIonEff = (np.nansum(logIonizationEfficiencies, axis = 1)[:,np.newaxis] - logIonizationEfficiencies) / num
   logImputedVals = np.tile(meanLogIonEff[:, :, np.newaxis], (1, 1, len(testProteinRatios))) + testProteinRatios
 
   return logImputedVals

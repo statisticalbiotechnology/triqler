@@ -219,7 +219,8 @@ def weightedGeomAvg(row, weights):
     return np.nan
 
 def geomAvg(row):
-  return np.exp(np.nanmean(np.log(row)))
+  return np.exp(np.nansum(np.log(row))/len(row))
+  #return np.exp(np.nanmean(np.log(row)))
 
 def geoNormalize(row):
   return row / geomAvg(row)

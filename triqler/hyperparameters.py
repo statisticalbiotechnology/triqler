@@ -25,7 +25,7 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     quantRows, quantMatrix = parsers.getQuantMatrix(quantRows)
     
     quantMatrixNormalized = [parsers.geoNormalize(row) for row in quantMatrix]
-    
+    #print(quantMatrixNormalized)
     #PEPTIDE IMPUTATION
     #for i in range(len(quantMatrixNormalized)):
     #    quantMatrixNormalized[i][np.isnan(quantMatrixNormalized[i])] = np.nanmin(quantMatrixNormalized)/2

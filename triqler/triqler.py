@@ -121,7 +121,7 @@ def convertTriqlerInputToPeptQuantRows(triqlerInputFile, peptQuantRowFile, param
   spectrumToFeatureMatch, featureClusterRows, intensityDiv = selectBestFeaturesPerRunAndSpectrum(peptQuantRowMap, getPEPFromScore, params)
   
   featureClusterRows = selectBestPqrPerFeatureCluster(spectrumToFeatureMatch, featureClusterRows)
-  print(featureClusterRows)
+  #print(featureClusterRows)
   peptideQuantRows = convertToPeptideQuantRows(featureClusterRows, intensityDiv)
   #print(peptideQuantRows)
   peptideQuantRows = updateIdentPEPs(peptideQuantRows, params['decoyPattern'], params['hasLinkPEPs'])

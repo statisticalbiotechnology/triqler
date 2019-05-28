@@ -131,7 +131,7 @@ def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
       poptNormal, _ = curve_fit(funcNorm, bins, vals)
       plt.plot(bins, funcNorm(bins, *poptNormal), 'r', label = 'normal fit', linewidth = 2.0)
       
-      if True:
+      if False:
         funcStudentT = lambda x, df, mu, sigma : t.pdf(x, df = df, loc = mu, scale = sigma)
         poptStudentT, _ = curve_fit(funcStudentT, bins, vals)
         print(poptStudentT)

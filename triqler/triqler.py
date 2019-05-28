@@ -362,7 +362,7 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
   hyperparameters.fitPriors(peptQuantRows, params) # updates priors
   
   print("Calculating protein posteriors")
-  processingPool = pool.MyPool(params['numThreads'])
+  processingPool = pool.MyPool(processes = params['numThreads'], warningFilter = params['warningFilter'])
   addDummyPosteriors = 0
   for (linkPEP, protein, quantRows, numPeptides), proteinIdPEP in zip(pickedProteinOutputRowsNew, peps):  
     if proteinIdPEP < 1.0:

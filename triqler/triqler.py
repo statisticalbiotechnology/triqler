@@ -95,7 +95,7 @@ def runTriqler(params, triqlerInputFile, triqlerOutputFile):
     sys.exit("Could not locate input file %s. Check if the path to the input file is correct." % triqlerInputFile)
   peptQuantRowFile = triqlerInputFile + ".pqr.tsv"
   peptQuantRows = convertTriqlerInputToPeptQuantRows(triqlerInputFile, peptQuantRowFile, params)
-
+  
   if params['t-test']:
     qvalMethod = 'pvalues'
   else:
@@ -119,11 +119,11 @@ def convertTriqlerInputToPeptQuantRows(triqlerInputFile, peptQuantRowFile, param
     printPeptideQuantRows(specQuantRowFile, parsers.getRunIds(params), peptideQuantRows)
 
   spectrumToFeatureMatch, featureClusterRows, intensityDiv = selectBestFeaturesPerRunAndSpectrum(peptQuantRowMap, getPEPFromScore, params)
-
-  featureClusterRows = selectBestPqrPerFeatureCluster(spectrumToFeatureMatch, featureClusterRows)
-
-  peptideQuantRows = convertToPeptideQuantRows(featureClusterRows, intensityDiv)
   
+  featureClusterRows = selectBestPqrPerFeatureCluster(spectrumToFeatureMatch, featureClusterRows)
+  print(featureClusterRows)
+  peptideQuantRows = convertToPeptideQuantRows(featureClusterRows, intensityDiv)
+  #print(peptideQuantRows)
   peptideQuantRows = updateIdentPEPs(peptideQuantRows, params['decoyPattern'], params['hasLinkPEPs'])
   
   print("Writing peptide quant rows to file")

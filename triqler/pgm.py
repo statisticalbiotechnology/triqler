@@ -14,7 +14,7 @@ from . import hyperparameters
 
 def getPosteriors(quantRowsOrig, params, returnDistributions = False):
   quantRows, quantMatrix = parsers.getQuantMatrix(quantRowsOrig)
-  
+  #print(quantRows)
   pProteinQuantsList, bayesQuantRow = getPosteriorProteinRatios(quantMatrix, quantRows, params)
   pProteinGroupQuants = getPosteriorProteinGroupRatios(pProteinQuantsList, bayesQuantRow, params)
   pProteinGroupDiffs, muGroupDiffs = getProteinGroupsDiffPosteriors(pProteinGroupQuants, params)
@@ -63,29 +63,32 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
     for i, row in enumerate(quantMatrix):
       linkPEP = quantRows[i].linkPEP[j]
       identPEP = quantRows[i].identificationPEP[j]
-      #print(j)
+      #print(row) #MAKE LIKELIHOOD GAUSSIAN OR HYPERSECANT WITH MEAN MU and variance of row?
+      # LIKELIHOOD NEEDS TO BE  SCALED LIKE orig. likelihood
       if identPEP < 1.0:
         pMissings = pMissing(xImpsAll[i,j,:], params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | m_grn = 1, t_grn = 0)    
         #print(np.shape(row[j]))
         #print(np.shape(pMissings))
         if np.isnan(row[j]):
           likelihood = pMissings * (1.0 - identPEP) * (1.0 - linkPEP) + pMissingGeomAvg[i] * (identPEP * (1.0 - linkPEP) + linkPEP)
-          
-          #np.savetxt("foo"+str(i)+".csv", likelihood, delimiter=",")
+          likelihood = 100*likelihood
+          #print(pMissings.sum())
+          #np.savetxt("foo_nan"+str(i)+".csv", likelihood, delimiter=",")
           
           # likelihood = min/2 av ngt....
           #print(likelihood)
         else:
           likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - identPEP) * (1.0 - linkPEP) + (1.0 - pMissingGeomAvg[i]) * (pQuantIncorrectId[i][j] * identPEP * (1.0 - linkPEP) + linkPEP)
-        
+          #np.savetxt("foo_nonan"+str(i)+".csv", likelihood, delimiter=",")
+          #print(likelihood)
         if np.min(likelihood) == 0.0:
           likelihood += np.nextafter(0,1)
         pProteinQuant += np.log(likelihood)
     #print(np.shape(pProteinQuant))
     pProteinQuant -= np.max(pProteinQuant)
-    #pProteinQuant = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
-    pProteinQuant = 10**pProteinQuant / np.sum(10**(pProteinQuant))
-    #np.savetxt("foo"+str(i)+".csv", pProteinQuant, delimiter=",")
+    pProteinQuant = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
+    #pProteinQuant = 10**pProteinQuant / np.sum(10**(pProteinQuant))
+    #np.savetxt("foo_protQuant"+str(i)+".csv", pProteinQuant, delimiter=",")
     pProteinQuantsList.append(pProteinQuant)
     
     eValue, confRegion = getPosteriorParams(params['proteinQuantCandidates'], pProteinQuant)

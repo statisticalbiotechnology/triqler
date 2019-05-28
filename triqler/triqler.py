@@ -2,7 +2,7 @@ from __future__ import print_function
 
 """triqler.triqler: provides entry point main()."""
 
-__version__ = "0.1.2"
+__version__ = "0.1.4"
 
 import sys
 import os
@@ -31,8 +31,9 @@ Royal Institute of Technology in Stockholm.
   ''' % (__version__))
   args, params = parseArgs()
   
+  params['warningFilter'] = "ignore"
   with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
+    warnings.simplefilter(params['warningFilter'])
     runTriqler(params, args.in_file, args.out_file)
 
 def parseArgs():
@@ -77,6 +78,7 @@ def parseArgs():
   args = apars.parse_args()
   
   params = dict()
+  params['warningFilter'] = "default"
   params['foldChangeEval'] = args.fold_change_eval
   params['t-test'] = args.ttest
   params['minSamples'] = args.min_samples

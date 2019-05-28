@@ -8,7 +8,7 @@ import os
 import itertools
 
 import numpy as np
-from scipy.stats import hypsecant, gamma, norm, binom #, cauchy
+from scipy.stats import hypsecant, gamma, norm, binom, t, cauchy
 from scipy.optimize import curve_fit
 
 from . import parsers
@@ -89,6 +89,7 @@ def fitLogitNormal(observedValues, params, plot):
   print("params[\"muDetect\"], params[\"sigmaDetect\"] = %f, %f" % (popt[0], popt[1]))
   print("params[\"muXIC\"], params[\"sigmaXIC\"] = %f, %f" % (popt[2], popt[3]))
   #params["muDetectInit"], params["sigmaDetectInit"] = popt[0], popt[1]
+  #popt[0], popt[1] = popt[2] - popt[3]*3, popt[3]*1.5
   params["muDetect"], params["sigmaDetect"] = popt[0], popt[1]
   params["muXIC"], params["sigmaXIC"] = popt[2], popt[3]
   if plot:
@@ -129,6 +130,31 @@ def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
     if func == funcHypsec:
       poptNormal, _ = curve_fit(funcNorm, bins, vals)
       plt.plot(bins, funcNorm(bins, *poptNormal), 'r', label = 'normal fit', linewidth = 2.0)
+      
+      if False:
+        funcStudentT = lambda x, df, mu, sigma : t.pdf(x, df = df, loc = mu, scale = sigma)
+        poptStudentT, _ = curve_fit(funcStudentT, bins, vals)
+        print(poptStudentT)
+        
+        funcCauchy = lambda x, mu, sigma : cauchy.pdf(x, loc = mu, scale = sigma)
+        poptCauchy, _ = curve_fit(funcCauchy, bins, vals)
+        print(poptCauchy)
+        
+        plt.plot(bins, funcStudentT(bins, *poptStudentT), 'm', label = 'student-t fit', linewidth = 2.0)
+        plt.plot(bins, funcCauchy(bins, *poptCauchy), 'c', label = 'cauchy fit', linewidth = 2.0)
+        
+        funcLogStudentT = lambda x, df, mu, sigma : t.logpdf(x, df = df, loc = mu, scale = sigma)
+        funcLogNorm = lambda x, mu, sigma : norm.logpdf(x, loc = mu, scale = sigma)
+        funcLogCauchy = lambda x, mu, sigma : cauchy.logpdf(x, loc = mu, scale = sigma)
+        
+        plt.xlabel(xlabel, fontsize = 18)
+        plt.legend()
+        
+        plt.figure()
+        plt.plot(bins, funcLogHypsec(bins, *popt), 'g', label = 'hypsec log fit', linewidth = 2.0)
+        plt.plot(bins, funcLogNorm(bins, *poptNormal), 'r', label = 'normal log fit', linewidth = 2.0)
+        plt.plot(bins, funcLogStudentT(bins, *poptStudentT), 'm', label = 'student-t log fit', linewidth = 2.0)
+        plt.plot(bins, funcLogCauchy(bins, *poptCauchy), 'c', label = 'cauchy log fit', linewidth = 2.0)
     plt.xlabel(xlabel, fontsize = 18)
     plt.legend()
 

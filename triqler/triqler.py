@@ -11,7 +11,6 @@ import copy
 import csv
 import multiprocessing
 import warnings
-import gc
 
 import numpy as np
 
@@ -55,10 +54,10 @@ def parseArgs():
   
   apars.add_argument('--fold_change_eval', type=float, default=1.0, metavar='F',
                      help='log2 fold change evaluation threshold.')
-                     
+  
   apars.add_argument('--decoy_pattern', default = "decoy_", metavar='P', 
                      help='Prefix for decoy proteins.')
-                     
+  
   apars.add_argument('--min_samples', type=int, default=2, metavar='N', 
                      help='Minimum number of samples a peptide needed to be quantified in.')
   # Peptides quantified in less than the minimum number will be discarded
@@ -73,7 +72,7 @@ def parseArgs():
   apars.add_argument('--write_spectrum_quants',
                      help='Write quantifications for consensus spectra. Only works if consensus spectrum index are given in input.',
                      action='store_true')
-                       
+  
   # ------------------------------------------------
   args = apars.parse_args()
   
@@ -92,6 +91,10 @@ def parseArgs():
   return args, params
   
 def runTriqler(params, triqlerInputFile, triqlerOutputFile):  
+  from timeit import default_timer as timer
+
+  start = timer()
+
   if not os.path.isfile(triqlerInputFile):
     sys.exit("Could not locate input file %s. Check if the path to the input file is correct." % triqlerInputFile)
   peptQuantRowFile = triqlerInputFile + ".pqr.tsv"
@@ -100,9 +103,12 @@ def runTriqler(params, triqlerInputFile, triqlerOutputFile):
     qvalMethod = 'pvalues'
   else:
     qvalMethod = 'avg_pep'
-    
+  
   selectComparisonBayesTmp = lambda proteinOutputRows, comparisonKey : selectComparisonBayes(proteinOutputRows, comparisonKey, params['t-test'])
   diff_exp.doDiffExp(params, peptQuantRows, triqlerOutputFile, getPickedProteinCalibration, selectComparisonBayesTmp, qvalMethod = qvalMethod)
+
+  end = timer()
+  print("Triqler execution took", end - start, "seconds wall clock time")
 
 def convertTriqlerInputToPeptQuantRows(triqlerInputFile, peptQuantRowFile, params):
   peptQuantRowMap, getPEPFromScore, params['fileList'], params['groupLabels'], params['groups'], params['hasLinkPEPs'] = getPeptQuantRowMap(triqlerInputFile, params['decoyPattern'])
@@ -158,6 +164,9 @@ def getPeptQuantRowMap(triqlerInputFile, decoyPattern):
   targetScores = np.array(targetScores)
   decoyScores = np.array(decoyScores)
   _, peps = qvality.getQvaluesFromScores(targetScores, decoyScores, includePEPs = True, includeDecoys = True, tdcInput = True)
+  
+  print("  Identified", countBelowFDR(peps, 0.01), "PSMs at 1% FDR")
+  
   peps = peps[::-1] # PEPs in descending order, highest PEP first
   
   allScores = np.concatenate((targetScores, decoyScores))
@@ -176,13 +185,14 @@ def setMissingAsMax(PEPs):
   return [x if x <= 1.0 else maxPEP for x in PEPs]
       
 def selectBestFeaturesPerRunAndSpectrum(peptQuantRowMap, getPEPFromScore, params, reduceKey = lambda x : x.peptide):
+  print("Selecting best feature per run and spectrum")
   minIntensity = 1e100
   noSpectrum = 0
   featureClusterRows = list()
   spectrumToFeatureMatch = dict() # stores the best peptideQuantRow per (protein, spectrumIdx)-pair
   for featureClusterIdx, trqRows in peptQuantRowMap.items():
     if featureClusterIdx % 10000 == 0:
-      print("featureClusterIdx:", featureClusterIdx)
+      print("  featureClusterIdx:", featureClusterIdx)
 
     bestPEP = collections.defaultdict(lambda : [(1.01, None)]*len(params['fileList'])) # reduceKey => array([linkPEP, precursorCandidate])
     bestPeptideScore = collections.defaultdict(lambda : (-1e9, -1)) # reduceKey => (identPEP, spectrumIdx); contains the identification PEPs
@@ -272,7 +282,7 @@ def selectBestPqrPerFeatureCluster(spectrumToFeatureMatch, featureClusterRows):
     if combinedPEP < featureClusterToSpectrumIdx.get(featureClusterIdx, (-1, 1.01))[1]:
       featureClusterToSpectrumIdx[featureClusterIdx] = (spectrumIdx, combinedPEP)
   survivingSpectrumIdxs = set([y[0] for x, y in featureClusterToSpectrumIdx.items()])
-  print("Surviving spectrumIdxs:", len(survivingSpectrumIdxs))
+  #print("Surviving spectrumIdxs:", len(survivingSpectrumIdxs))
   
   featureClusterRows = filter(lambda x : x[2] in survivingSpectrumIdxs, featureClusterRows)
   
@@ -357,7 +367,12 @@ def getPickedProteinCalibration(peptQuantRows, params, proteinModifier, getEvalF
   targetScores = np.array(targetScores)
   decoyScores = np.array(decoyScores)
   _, peps = qvality.getQvaluesFromScores(targetScores, decoyScores, includePEPs = True, includeDecoys = True, tdcInput = True)
-    
+  
+  if len(np.nonzero(peps < 1.0)) == 0:
+    sys.exit("ERROR: No proteins could be identified with a PEP below 1.0, cannot calculate posteriors.")
+  else:
+    print("  Identified", countBelowFDR(peps, 0.01), "proteins at 1% FDR")
+  
   print("Fitting hyperparameters")
   hyperparameters.fitPriors(peptQuantRows, params) # updates priors
   
@@ -420,6 +435,7 @@ def updateIdentPEPs(peptideQuantRow, decoyPattern, hasLinkPEPs):
   
   _, identPEPs = qvality.getQvaluesFromScores(targetScores, decoyScores, includePEPs = True, includeDecoys = True, tdcInput = True)
   
+  print("  Identified", countBelowFDR(identPEPs, 0.01), "peptides at 1% FDR")
   newPeptideQuantRows = list()
   i = 0
   for row in peptideQuantRow:
@@ -434,7 +450,10 @@ def updateIdentPEPs(peptideQuantRow, decoyPattern, hasLinkPEPs):
     else:
       newPeptideQuantRows.append(row._replace(combinedPEP = identPEP, identificationPEP = [combinePEPs(identPEP, x) for x in row.identificationPEP]))
   return newPeptideQuantRows
-   
+
+def countBelowFDR(peps, qvalThreshold):
+  return np.count_nonzero(np.cumsum(peps) / np.arange(1, len(peps) + 1) < qvalThreshold)
+
 def isDecoy(proteins, decoyPattern):
   isDecoyProt = True
   for protein in proteins:

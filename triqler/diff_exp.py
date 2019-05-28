@@ -25,19 +25,22 @@ def doDiffExp(params, peptQuantRows, outputFile, proteinQuantificationMethod, se
         proteinOutputFile = outputFile
       else:
         proteinOutputFile = outputFile.replace(outputFileExt, ".%dvs%d%s" % (groupId1 + 1, groupId2 + 1, outputFileExt if len(outputFileExt) > 1 else ""))
-      print(proteinOutputFile)
+      print("Comparing", params['groupLabels'][groupId1], "to", params['groupLabels'][groupId2])
+      print("  output file:", proteinOutputFile)
       proteinOutputRowsGroup = selectComparison(proteinOutputRows, (groupId1, groupId2))
       if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
         evalFunctions = [lambda protein, evalFeatures : evalTruePositiveTtest(params["trueConcentrationsDict"], protein, groupId1, groupId2, evalFeatures[-2], params)]
       getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params)
   
-  if False:
-    proteinOutputFile = outputFile
-    print(proteinOutputFile)
-    proteinOutputRowsGroup = selectComparison(proteinOutputRows, 'ANOVA')
-    if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
-      evalFunctions = [lambda protein, evalFeatures : evalTruePositiveANOVA(params["trueConcentrationsDict"], protein)]
-  getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params)
+    if False: # The ANOVA-like test seems to work as expected for low number of groups (<5), but creates many false positive with high numbers of groups
+      proteinOutputFile = outputFile
+      print(proteinOutputFile)
+      proteinOutputRowsGroup = selectComparison(proteinOutputRows, 'ANOVA')
+      if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
+        evalFunctions = [lambda protein, evalFeatures : evalTruePositiveANOVA(params["trueConcentrationsDict"], protein)]
+  else:
+    print("Comparing", params['groupLabels'][0], "to", params['groupLabels'][1] + ", output file:", proteinOutputFile)
+    getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params)
 
 def getOutpuFileExtension(outputFile):
   fileName = outputFile.split("/")[-1]
@@ -115,7 +118,7 @@ def getFoldChange(quants, params):
 def getFc(quants, params, groupId1, groupId2):
   return np.log2(np.mean([quants[x] for x in params['groups'][groupId1]]) / np.mean([quants[x] for x in params['groups'][groupId2]]))
   
-def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params):
+def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params, qvalThreshold = 0.05):
   writer = csv.writer(open(outputFile, 'w'), delimiter = '\t')
   plotCalibration = len(evalFunctions) > 0
   if plotCalibration:
@@ -139,6 +142,7 @@ def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params):
     reportedQvalsPval, reportedPEPsPval = qvality.getQvaluesFromPvalues(targetPvalues, includePEPs = True)
   
   nextScores = [x[0] for x in proteinOutputRows] + [np.nan]
+  numSignificant = 0
   for i, (combinedPEP, _, protein, quantRows, evalFeatures, numPeptides, proteinIdPEP, quants) in enumerate(proteinOutputRows):
     if 'pvalues_with_fc' in qvalMethod and np.abs(evalFeatures[-2]) < params['foldChangeEval']:
       continue
@@ -156,6 +160,8 @@ def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params):
       sumPEP += combinedPEP
       targets += 1
       qval = sumPEP / targets
+      if qval < qvalThreshold:
+        numSignificant += 1
 
     if score == nextScores[i+1]:
       numTies += 1
@@ -186,6 +192,8 @@ def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params):
     writer.writerow(["q_value"] + protOutputHeaders)
     for outRow, reportedQval in zip(outRows, reportedQvals):
       writer.writerow(["%.4g" % (reportedQval)] + outRow)
+  
+  print("  Found", numSignificant, "target proteins as differentially abundant at", str(int(qvalThreshold * 100)) + "% FDR")
 
 def fdrsToQvals(fdrs):
   qvals = [0] * len(fdrs)

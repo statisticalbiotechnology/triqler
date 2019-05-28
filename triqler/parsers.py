@@ -101,21 +101,24 @@ def parseTriqlerInputFile(triqlerInputFile):
   reader = csv.reader(open(triqlerInputFile, 'r'), delimiter = '\t')
   headers = next(reader)
   hasLinkPEPs = "linkPEP" in headers
+  getUniqueProteins = lambda x : list(set([p for p in x if len(p.strip()) > 0]))
   intensityCol = 7 if hasLinkPEPs else 4
   seenPeptChargePairs = dict()
   for i, row in enumerate(reader):
     if i % 1000000 == 0:
-      print("Reading row", i)
+      print("  Reading row", i)
     
     intensity = float(row[intensityCol])
     if intensity > 0.0:
       if hasLinkPEPs:
-        yield TriqlerInputRow(row[0], row[1], int(row[2]), int(row[3]), float(row[4]), int(row[5]), float(row[6]), intensity, row[8], row[9:])
+        proteins = getUniqueProteins(row[9:])
+        yield TriqlerInputRow(row[0], row[1], int(row[2]), int(row[3]), float(row[4]), int(row[5]), float(row[6]), intensity, row[8], proteins)
       else:
         key = (int(row[2]), row[5])
         if key not in seenPeptChargePairs:
           seenPeptChargePairs[key] = len(seenPeptChargePairs)
-        yield TriqlerInputRow(row[0], row[1], int(row[2]), (i+1) * 100, 0.0, seenPeptChargePairs[key], float(row[3]), intensity, row[5], row[6:])
+        proteins = getUniqueProteins(row[6:])
+        yield TriqlerInputRow(row[0], row[1], int(row[2]), (i+1) * 100, 0.0, seenPeptChargePairs[key], float(row[3]), intensity, row[5], proteins)
 
 def hasLinkPEPs(triqlerInputFile):
   reader = csv.reader(open(triqlerInputFile, 'r'), delimiter = '\t')

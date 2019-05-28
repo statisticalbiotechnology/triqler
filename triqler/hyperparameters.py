@@ -85,9 +85,9 @@ def fitLogitNormal(observedValues, params, plot):
   bins = bins[:-1]
   popt, _ = curve_fit(funcLogitNormal, bins, vals, p0 = (m, s, m - s, s))
   
-  #print("params[\"muDetectInit\"], params[\"sigmaDetectInit\"] = %f, %f" % (popt[0], popt[1]))
-  print("params[\"muDetect\"], params[\"sigmaDetect\"] = %f, %f" % (popt[0], popt[1]))
-  print("params[\"muXIC\"], params[\"sigmaXIC\"] = %f, %f" % (popt[2], popt[3]))
+  #print("  params[\"muDetectInit\"], params[\"sigmaDetectInit\"] = %f, %f" % (popt[0], popt[1]))
+  print("  params[\"muDetect\"], params[\"sigmaDetect\"] = %f, %f" % (popt[0], popt[1]))
+  print("  params[\"muXIC\"], params[\"sigmaXIC\"] = %f, %f" % (popt[2], popt[3]))
   #params["muDetectInit"], params["sigmaDetectInit"] = popt[0], popt[1]
   #popt[0], popt[1] = popt[2] - popt[3]*3, popt[3]*1.5
   params["muDetect"], params["sigmaDetect"] = popt[0], popt[1]
@@ -121,7 +121,7 @@ def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
     fitLabel = "gamma fit"
   else:
     fitLabel = "distribution fit"
-  print(outputString % tuple(varNames + list(popt)))
+  print("  " + outputString % tuple(varNames + list(popt)))
   if plot:    
     import matplotlib.pyplot as plt
     plt.figure()

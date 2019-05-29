@@ -72,10 +72,15 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
       # LIKELIHOOD NEEDS TO BE  SCALED LIKE orig. likelihood
       if identPEP < 1.0:
         pMissings = pMissing(xImpsAll[i,j,:], params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | m_grn = 1, t_grn = 0)    
+        #pMissings = pMissing(xImpsAll[i,j,:], -1, params["sigmaDetect"])
+        #print(pMissings)
         #print(np.shape(row[j]))
         #print(np.shape(pMissings))
         if np.isnan(row[j]):
-          likelihood = pMissings * (1.0 - identPEP) * (1.0 - linkPEP) + pMissingGeomAvg[i] * (identPEP * (1.0 - linkPEP) + linkPEP)
+          #likelihood = pMissings * (1.0 - identPEP) * (1.0 - linkPEP) + pMissingGeomAvg[i] * (identPEP * (1.0 - linkPEP) + linkPEP)
+          likelihood = pMissing(xImpsAll[i,j,:], -1.5, params["sigmaDetect"])
+          #np.savetxt("foo_pmissings"+str(i)+".csv", pMissings, delimiter=",")
+          #print(pMissings)
           #print(identPEP)
           #likelihood = (pMissings + pMissingGeomAvg[i])*params["maxLikelihood"]*0.5
           #print(identPEP)
@@ -84,7 +89,7 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
           #print((debugging))
           #likelihood = 100*likelihood
           #print(pMissings.sum())
-          np.savetxt("foo_nan"+str(i)+".csv", likelihood, delimiter=",")
+          #np.savetxt("foo_nan"+str(i)+".csv", likelihood, delimiter=",")
           #np.savetxt("foo_nan_pmiss"+str(i)+".csv", debugPRINT, delimiter=",")
           #np.savetxt("foo_nan_pmissGeo"+str(i)+".csv", debugging, delimiter=",")
           # likelihood = min/2 av ngt....
@@ -93,7 +98,7 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
           likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - identPEP) * (1.0 - linkPEP) + (1.0 - pMissingGeomAvg[i]) * (pQuantIncorrectId[i][j] * identPEP * (1.0 - linkPEP) + linkPEP)
           #if max(likelihood) > params["maxLikelihood"] # COOOOONTINUE HERE
           #print("max:" + str(max(likelihood)))
-          np.savetxt("foo_likelihood"+str(i)+".csv", likelihood, delimiter=",")
+          #np.savetxt("foo_likelihood"+str(i)+".csv", likelihood, delimiter=",")
           #print(likelihood)
         if np.min(likelihood) == 0.0:
           likelihood += np.nextafter(0,1)
@@ -122,7 +127,6 @@ def imputeValues(quantMatrix, proteinRatios, testProteinRatios):
   #meanLogIonEff = (np.nansum(logIonizationEfficiencies, axis = 1)[:,np.newaxis] - logIonizationEfficiencies) / numNonZeros
   meanLogIonEff = (np.nansum(logIonizationEfficiencies, axis = 1)[:,np.newaxis] - logIonizationEfficiencies) / num
   logImputedVals = np.tile(meanLogIonEff[:, :, np.newaxis], (1, 1, len(testProteinRatios))) + testProteinRatios
-
   return logImputedVals
 
 def pMissing(x, muLogit, sigmaLogit):

@@ -44,7 +44,6 @@ def getPosteriorProteinRatios(quantMatrix, quantRows, params, maxIterations = 50
 
 def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   numSamples = len(quantMatrix[0])
-  
   logGeoAvgs = np.log10([parsers.geomAvg(row) for row in quantMatrix])
   
   #for row in quantMatrix:
@@ -62,14 +61,23 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   pDiffs = hyperparameters.funcHypsec(impDiffs, params["muFeatureDiff"], params["sigmaFeatureDiff"]) # Pr(f_grn = x | m_grn = 0, t_grn = 0)
   
   pProteinQuantsList, bayesQuantRow = list(), list()
+  
+  #likelihoodNaNDUMP = open("likelihoodNaN.csv", "a")
+  #likelihoodDUMP = open("likelihood.csv", "a")
+  #posteriorDUMP = open("posterior.csv", "a")
+  #priorDUMP = open("prior.csv", "a")
+  #proteinQuantCandDUMP = open("protQuantCand.csv", "a")
   for j in range(numSamples):
     pProteinQuant = params['proteinPrior'].copy() # log likelihood
-    
+    #str1 = ",".join(str(e) for e in pProteinQuant.tolist())
+    #priorDUMP.write(str1+"\n")
     for i, row in enumerate(quantMatrix):
       linkPEP = quantRows[i].linkPEP[j]
       identPEP = quantRows[i].identificationPEP[j]
       #print(row) #MAKE LIKELIHOOD GAUSSIAN OR HYPERSECANT WITH MEAN MU and variance of row?
-      # LIKELIHOOD NEEDS TO BE  SCALED LIKE orig. likelihood
+      # LIKELIHOOD NEEDS TO BE  SCALED LIKE orig. likelihoodi
+      #if identPEP < 0.8:
+          #print(row)
       if identPEP < 1.0:
         pMissings = pMissing(xImpsAll[i,j,:], params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | m_grn = 1, t_grn = 0)    
         #pMissings = pMissing(xImpsAll[i,j,:], -1, params["sigmaDetect"])
@@ -77,9 +85,11 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
         #print(np.shape(row[j]))
         #print(np.shape(pMissings))
         if np.isnan(row[j]):
-          #likelihood = pMissings * (1.0 - identPEP) * (1.0 - linkPEP) + pMissingGeomAvg[i] * (identPEP * (1.0 - linkPEP) + linkPEP)
-          likelihood = pMissing(xImpsAll[i,j,:], -1.5, params["sigmaDetect"])
-          #np.savetxt("foo_pmissings"+str(i)+".csv", pMissings, delimiter=",")
+          #print(str(pMissingGeomAvg[i]) + ": " + str(pMissingGeomAvg[i]*identPEP))
+          likelihood = pMissings * (1.0 - identPEP) * (1.0 - linkPEP) + pMissingGeomAvg[i] * (identPEP * (1.0 - linkPEP) + linkPEP)
+          likelihood = likelihood*100
+          #likelihood = pMissing(xImpsAll[i,j,:], -3, params["sigmaDetect"])
+          #np.savetxt("foo_pmissings"+str(i)+".csv", likelihood, delimiter=",")
           #print(pMissings)
           #print(identPEP)
           #likelihood = (pMissings + pMissingGeomAvg[i])*params["maxLikelihood"]*0.5
@@ -94,8 +104,13 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
           #np.savetxt("foo_nan_pmissGeo"+str(i)+".csv", debugging, delimiter=",")
           # likelihood = min/2 av ngt....
           #print(likelihood)
+          #str1 = ",".join(str(e) for e in likelihood.tolist())
+          #likelihoodNaNDUMP.write(str1+"\n")
         else:
           likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - identPEP) * (1.0 - linkPEP) + (1.0 - pMissingGeomAvg[i]) * (pQuantIncorrectId[i][j] * identPEP * (1.0 - linkPEP) + linkPEP)
+          likelihood = likelihood*100
+          #str1 = ",".join(str(e) for e in likelihood.tolist())
+          #likelihoodDUMP.write(str1+"\n")
           #if max(likelihood) > params["maxLikelihood"] # COOOOONTINUE HERE
           #print("max:" + str(max(likelihood)))
           #np.savetxt("foo_likelihood"+str(i)+".csv", likelihood, delimiter=",")
@@ -108,7 +123,11 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
     pProteinQuant = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
     #pProteinQuant = 10**pProteinQuant / np.sum(10**(pProteinQuant))
     #np.savetxt("foo_protQuant"+str(i)+".csv", pProteinQuant, delimiter=",")
-    pProteinQuantsList.append(pProteinQuant)
+    #str1 = ",".join(str(e) for e in pProteinQuant.tolist())
+    #posteriorDUMP.write(str1+"\n")
+    #str2 = ",".join(str(e) for e in params['proteinQuantCandidates'])
+    #proteinQuantCandDUMP.write(str2+"\n")
+    #pProteinQuantsList.append(pProteinQuant)
     
     eValue, confRegion = getPosteriorParams(params['proteinQuantCandidates'], pProteinQuant)
     bayesQuantRow.append(eValue)

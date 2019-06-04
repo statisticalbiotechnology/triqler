@@ -119,9 +119,10 @@ def convertTriqlerInputToPeptQuantRows(triqlerInputFile, peptQuantRowFile, param
     printPeptideQuantRows(specQuantRowFile, parsers.getRunIds(params), peptideQuantRows)
 
   spectrumToFeatureMatch, featureClusterRows, intensityDiv = selectBestFeaturesPerRunAndSpectrum(peptQuantRowMap, getPEPFromScore, params)
-  
+   
   featureClusterRows = selectBestPqrPerFeatureCluster(spectrumToFeatureMatch, featureClusterRows)
   #print(featureClusterRows)
+  #print(intensityDiv)
   peptideQuantRows = convertToPeptideQuantRows(featureClusterRows, intensityDiv)
   #print(peptideQuantRows)
   peptideQuantRows = updateIdentPEPs(peptideQuantRows, params['decoyPattern'], params['hasLinkPEPs'])
@@ -162,7 +163,9 @@ def getPeptQuantRowMap(triqlerInputFile, decoyPattern):
   
   allScores = np.array(sorted(targetScores + decoyScores))
   getPEPFromScore = lambda score : peps[min(np.searchsorted(allScores, score, side = 'left'), len(peps) - 1)] if not np.isnan(score) else 1.0
-  
+  #print(allScores)
+  #print(type(peps[min(np.searchsorted(allScores, 1, side = 'left'))]))
+  #print(peps)
   fileList, groupLabels, groups = getFilesAndGroups(runCondPairs)
   
   if len(groups) < 2:
@@ -227,8 +230,10 @@ def selectBestFeaturesPerRunAndSpectrum(peptQuantRowMap, getPEPFromScore, params
         spectrumId = -100 * noSpectrum
       
       featureClusterRows.append((intensities, featureClusterIdx, spectrumId, linkPEPs, identPEPs, peptide, proteins, svmScore, charge))
-      
+      #if np.isnan(svmScore):
+      #    print(svmScore)
       identPEP = getPEPFromScore(svmScore)
+      #print(identPEP)
       combinedPEP = combinePEPs(identPEP, 1.0 - peptLinkEP)
       
       # multiple featureClusters can be associated with the same consensus spectrum

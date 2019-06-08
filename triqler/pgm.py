@@ -62,15 +62,15 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   
   pProteinQuantsList, bayesQuantRow = list(), list()
   
-  likelihoodNaNDUMP = open("likelihoodNaN.csv", "a")
-  likelihoodDUMP = open("likelihood.csv", "a")
-  posteriorDUMP = open("posterior.csv", "a")
-  priorDUMP = open("prior.csv", "w")
+  #likelihoodNaNDUMP = open("likelihoodNaN.csv", "a")
+  #likelihoodDUMP = open("likelihood.csv", "a")
+  #posteriorDUMP = open("posterior.csv", "a")
+  #priorDUMP = open("prior.csv", "w")
   #proteinQuantCandDUMP = open("protQuantCand.csv", "a")
   for j in range(numSamples):
     pProteinQuant = params['proteinPrior'].copy() # log likelihood
-    str1 = ",".join(str(e) for e in pProteinQuant.tolist())
-    priorDUMP.write(str1+"\n")
+    #str1 = ",".join(str(e) for e in pProteinQuant.tolist())
+    #priorDUMP.write(str1+"\n")
     for i, row in enumerate(quantMatrix):
       linkPEP = quantRows[i].linkPEP[j]
       identPEP = quantRows[i].identificationPEP[j]
@@ -108,7 +108,7 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
           #likelihoodNaNDUMP.write(str1+"\n")
         else:
           likelihood = (1.0 - pMissings) * pDiffs[i,j,:] * (1.0 - identPEP) * (1.0 - linkPEP) + (1.0 - pMissingGeomAvg[i]) * (pQuantIncorrectId[i][j] * identPEP * (1.0 - linkPEP) + linkPEP)
-          #likelihood = likelihood*100
+          likelihood = likelihood*100
           #str1 = ",".join(str(e) for e in likelihood.tolist())
           #likelihoodDUMP.write(str1+"\n")
           #if max(likelihood) > params["maxLikelihood"] # COOOOONTINUE HERE
@@ -123,8 +123,8 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
     pProteinQuant = np.exp(pProteinQuant) / np.sum(np.exp(pProteinQuant))
     #pProteinQuant = 10**pProteinQuant / np.sum(10**(pProteinQuant))
     #np.savetxt("foo_protQuant"+str(i)+".csv", pProteinQuant, delimiter=",")
-    str1 = ",".join(str(e) for e in pProteinQuant.tolist())
-    posteriorDUMP.write(str1+"\n")
+    #str1 = ",".join(str(e) for e in pProteinQuant.tolist())
+    #posteriorDUMP.write(str1+"\n")
     #str2 = ",".join(str(e) for e in params['proteinQuantCandidates'])
     #proteinQuantCandDUMP.write(str2+"\n")
     #pProteinQuantsList.append(pProteinQuant)

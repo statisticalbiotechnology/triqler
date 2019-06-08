@@ -64,7 +64,8 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   fitLogitNormal(observedXICValues, params, plot)
  
   fitDist(protQuants, funcHypsec, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)
-    
+  params["muProtein"] == -4 # change to uninformative PRIOR ###################
+
   fitDist(imputedDiffs, funcHypsec, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
   
   fitDist(protStdevsInGroup, funcGamma, "stdev log10(protein diff in group)", ["shapeInGroupStdevs", "scaleInGroupStdevs"], params, plot, x = np.arange(-0.1, 1.0, 0.005))

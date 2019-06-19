@@ -7,13 +7,17 @@ from multiprocessing import Pool
 
 class MyPool:
   def __init__(self, processes = 1, warningFilter = "default"):
-    self.pool = Pool(processes, lambda : init_worker(warningFilter))
+    self.warningFilter = warningFilter
+    self.pool = Pool(processes, self.initWorker)
     self.results = []
     
   def applyAsync(self, f, args):
     r = self.pool.apply_async(f, args)
     self.results.append(r)
-    
+  
+  def initWorker(self):
+    return init_worker(self.warningFilter)
+  
   def checkPool(self, printProgressEvery = -1):
     try:
       outputs = list()

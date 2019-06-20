@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import csv
 import os
+import sys
 
 import numpy as np
 import bisect
@@ -29,7 +30,13 @@ def getQvaluesFromScores(targetScores, decoyScores, includePEPs = False, include
     targetScores = np.array(targetScores)
   if type(decoyScores) is not np.ndarray:
     decoyScores = np.array(decoyScores)
-    
+  
+  if len(targetScores) == 0:
+    sys.exit("ERROR: no target hits available for PEP calculation")
+  
+  if len(decoyScores) == 0:
+    sys.exit("ERROR: no decoy hits available for PEP calculation")
+  
   targetScores.sort()
   decoyScores.sort()
   allScores = np.concatenate((targetScores, decoyScores))

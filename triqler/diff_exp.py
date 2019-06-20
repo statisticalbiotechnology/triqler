@@ -119,7 +119,7 @@ def getFc(quants, params, groupId1, groupId2):
   return np.log2(np.mean([quants[x] for x in params['groups'][groupId1]]) / np.mean([quants[x] for x in params['groups'][groupId2]]))
   
 def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params, qvalThreshold = 0.05):
-  writer = csv.writer(open(outputFile, 'w'), delimiter = '\t')
+  writer = parsers.getTsvWriter(outputFile)
   plotCalibration = len(evalFunctions) > 0
   if plotCalibration:
     evalTruePositives = evalFunctions[0]

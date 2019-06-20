@@ -15,12 +15,29 @@ import itertools
 import re
 from collections import defaultdict, namedtuple
 
+
+def getTsvReader(filename):
+  # Python 3
+  if sys.version_info[0] >= 3:
+    return csv.reader(open(filename, 'r', newline = ''), delimiter = '\t')
+  # Python 2
+  else:
+    return csv.reader(open(filename, 'rb'), delimiter = '\t')
+
+def getTsvWriter(filename):
+  # Python 3
+  if sys.version_info[0] >= 3:
+    return csv.writer(open(filename, 'w', newline = ''), delimiter = '\t')
+  # Python 2
+  else:
+    return csv.writer(open(filename, 'wb'), delimiter = '\t')
+
 ################################################
 ## input: filename <tab> group (one per line) ##
 ################################################
 
 def parseFileList(inputFile):
-  reader = csv.reader(open(inputFile, 'r'), delimiter = '\t')
+  reader = getTsvReader(inputFile)
   fileList = list()
   groups = list()
   groupNames = list()
@@ -69,7 +86,7 @@ def parseFeatureClustersFileHandle(reader):
       rows = list()
 
 def parseFeatureClustersFile(clusterQuantFile):
-  reader = csv.reader(open(clusterQuantFile, 'r'), delimiter = '\t')
+  reader = getTsvReader(clusterQuantFile)
   i = 0
   for x in parseFeatureClustersFileHandle(reader):
     #if i > 10000:
@@ -98,7 +115,7 @@ class TriqlerInputRow(TriqlerInputRowBase):
     return "\t".join(map(str, self.toList()))
 
 def parseTriqlerInputFile(triqlerInputFile):
-  reader = csv.reader(open(triqlerInputFile, 'r'), delimiter = '\t')
+  reader = getTsvReader(triqlerInputFile)
   headers = next(reader)
   hasLinkPEPs = "linkPEP" in headers
   getUniqueProteins = lambda x : list(set([p for p in x if len(p.strip()) > 0]))
@@ -121,7 +138,7 @@ def parseTriqlerInputFile(triqlerInputFile):
         yield TriqlerInputRow(row[0], row[1], int(row[2]), (i+1) * 100, 0.0, seenPeptChargePairs[key], float(row[3]), intensity, row[5], proteins)
 
 def hasLinkPEPs(triqlerInputFile):
-  reader = csv.reader(open(triqlerInputFile, 'r'), delimiter = '\t')
+  reader = getTsvReader(triqlerInputFile)
   headers = next(reader)
   return "linkPEP" in headers
 
@@ -144,7 +161,7 @@ def getPeptideQuantRowHeaders(runs):
   return PeptideQuantRowHeaders[:4] + runs + runs + runs + PeptideQuantRowHeaders[7:]
 
 def parsePeptideQuantFile(peptideQuantFile):
-  reader = csv.reader(open(peptideQuantFile, 'r'), delimiter = '\t')
+  reader = getTsvReader(peptideQuantFile)
   header = next(reader)
   numRuns = (header.index("peptide") - header.index("spectrum") - 1) / 3
   peptideQuantRows = list()
@@ -178,7 +195,7 @@ def parsePeptideQuantFile(peptideQuantFile):
   return runIds, groups, groupLabels, peptideQuantRows
 
 def getPeptideQuantFileHeaders(peptideQuantFile):
-  reader = csv.reader(open(peptideQuantFile, 'r'), delimiter = '\t')
+  reader = getTsvReader(peptideQuantFile)
   header = next(reader)
   return header
 

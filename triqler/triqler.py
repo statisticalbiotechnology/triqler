@@ -298,7 +298,7 @@ def convertToPeptideQuantRows(featureClusterRows, intensityDiv = 1e6):
   return peptideQuantRows
   
 def printPeptideQuantRows(peptOutputFile, headers, peptideQuantRows):
-  writer = csv.writer(open(peptOutputFile, 'w'), delimiter = '\t')
+  writer = parsers.getTsvWriter(peptOutputFile)
   writer.writerow(parsers.getPeptideQuantRowHeaders(headers))
   for row in peptideQuantRows:
     writer.writerow(row.toList())

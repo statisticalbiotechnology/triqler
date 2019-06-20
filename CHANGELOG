@@ -1,3 +1,7 @@
+v0.02.1
+* Fixed problems with CSV reading and writing on Windows (#9)
+* Fixed lambda function pickling problem with multiprocessing on Windows (#8)
+
 v0.02
 * Fixed empty columns as extra proteins issue (#4)
 * Improved logging messages

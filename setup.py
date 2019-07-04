@@ -29,7 +29,7 @@ setup(
 
     name='triqler',  # Required
     version=version,  # Required
-    packages = ["triqler"],
+    packages = ["triqler", "triqler.convert"],
     entry_points = {
         "console_scripts": ['triqler = triqler.triqler:main']
     },

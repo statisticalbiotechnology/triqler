@@ -12,7 +12,11 @@ from . import parsers
 from . import convolution_dp
 from . import hyperparameters
 
-def getPosteriors(quantRowsOrig, params, returnDistributions = False):
+import sys
+
+def getPosteriors(quantRowsOrig, params, returnDistributions = True):
+  
+  #print(params)
   quantRows, quantMatrix = parsers.getQuantMatrix(quantRowsOrig)
   
   pProteinQuantsList, bayesQuantRow = getPosteriorProteinRatios(quantMatrix, quantRows, params)
@@ -21,36 +25,35 @@ def getPosteriors(quantRowsOrig, params, returnDistributions = False):
   
   probsBelowFoldChange = getProbBelowFoldChangeDict(pProteinGroupDiffs, params)
   if returnDistributions:
+    #print("returnDistributions is TRUE!")
+    #sys.stdout.flush()
     return bayesQuantRow, muGroupDiffs, probsBelowFoldChange, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs
   else:
+    #print("returnDistributions is FALSE!")
+    #sys.stdout.flush()
     return bayesQuantRow, muGroupDiffs, probsBelowFoldChange
 
-def getDummyPosteriors(params):
-  bayesQuantRow = [1.0 for g in params['groups'] for x in g]
-  numGroups = len(params['groups'])  
-  probsBelowFoldChange, muGroupDiffs = dict(), dict()
-  for groupId1, groupId2 in itertools.combinations(range(numGroups), 2):
-    probsBelowFoldChange[(groupId1,groupId2)], muGroupDiffs[(groupId1,groupId2)] = 1.0, 0.0
-  return bayesQuantRow, muGroupDiffs, probsBelowFoldChange
-  
 def getPosteriorProteinRatios(quantMatrix, quantRows, params, maxIterations = 50, bayesQuantRow = None):
+  #print(len(quantMatrix))
+  #print(params.keys())
+  #print("")
   numSamples = len(quantMatrix[0])
-  bayesQuantRow = np.array([1.0]*numSamples)
-  converged = False
+  #print(numSamples)
+  bayesQuantRow = np.array([1.0]*numSamples) #<--- uniform prior????
+  
   for iteration in range(maxIterations):  
     prevBayesQuantRow = np.copy(bayesQuantRow)
     pProteinQuantsList, bayesQuantRow = getPosteriorProteinRatio(quantMatrix, quantRows, bayesQuantRow, params)
+    #print(len(pProteinQuantsList[8]))    
+    #print(len(pProteinQuantsList[0]))
     
+    #print(bayesQuantRow)
     bayesQuantRow = parsers.geoNormalize(bayesQuantRow)
     
     diffInIteration = np.log10(prevBayesQuantRow) - np.log10(bayesQuantRow)
     if np.max(diffInIteration*diffInIteration) < 1e-4:
-      converged = True
-      #print("Converged after iteration", iteration+1, quantRows[0].protein[0])
+      #print("Converged after iteration", iteration+1)
       break
-  
-  if not converged:
-    print("Warning: failed to converge for protein", quantRows[0].protein[0])
   
   return pProteinQuantsList, bayesQuantRow
 
@@ -96,8 +99,9 @@ def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
 
 def imputeValues(quantMatrix, proteinRatios, testProteinRatios):
   logIonizationEfficiencies = np.log10(quantMatrix) - np.log10(proteinRatios)
-  
+  #print(logIonizationEfficiencies)
   numNonZeros = np.count_nonzero(~np.isnan(logIonizationEfficiencies), axis = 1)[:,np.newaxis] - ~np.isnan(logIonizationEfficiencies)
+  #print(numNonZeros)
   np.nan_to_num(logIonizationEfficiencies, False)
   meanLogIonEff = (np.nansum(logIonizationEfficiencies, axis = 1)[:,np.newaxis] - logIonizationEfficiencies) / numNonZeros
   
@@ -113,8 +117,10 @@ def getPosteriorProteinGroupRatios(pProteinQuantsList, bayesQuantRow, params):
   pProteinGroupQuants = list()
   for groupId in range(numGroups):
     filteredProteinQuantsList = np.array([x for j, x in enumerate(pProteinQuantsList) if j in params['groups'][groupId]])
+    pDiffPrior = params['inGroupDiffPrior'][groupId]
     if "shapeInGroupStdevs" in params:
-      pMu = getPosteriorProteinGroupMuMarginalized(filteredProteinQuantsList, params)
+      #pMu = getPosteriorProteinGroupMuMarginalized(filteredProteinQuantsList, params)
+      pMu = getPosteriorProteinGroupMuMarginalized(pDiffPrior, filteredProteinQuantsList, params)
     else:
       pMu = getPosteriorProteinGroupMu(params['inGroupDiffPrior'], filteredProteinQuantsList, params)
     pProteinGroupQuants.append(pMu)
@@ -131,7 +137,7 @@ def getPosteriorProteinGroupMu(pDiffPrior, pProteinQuantsList, params):
   pMus = np.exp(pMus) / np.sum(np.exp(pMus))
   return pMus
 
-def getPosteriorProteinGroupMuMarginalized(pProteinQuantsList, params):
+def getPosteriorProteinGroupMuMarginalized(pDiffPrior, pProteinQuantsList, params):
   pMus = np.zeros((len(params['sigmaCandidates']), len(params['proteinQuantCandidates'])))
   for pProteinQuants in pProteinQuantsList:
     for idx, pDiffPrior in enumerate(params['inGroupDiffPrior']):

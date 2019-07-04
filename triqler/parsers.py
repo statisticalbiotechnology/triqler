@@ -15,29 +15,12 @@ import itertools
 import re
 from collections import defaultdict, namedtuple
 
-
-def getTsvReader(filename):
-  # Python 3
-  if sys.version_info[0] >= 3:
-    return csv.reader(open(filename, 'r', newline = ''), delimiter = '\t')
-  # Python 2
-  else:
-    return csv.reader(open(filename, 'rb'), delimiter = '\t')
-
-def getTsvWriter(filename):
-  # Python 3
-  if sys.version_info[0] >= 3:
-    return csv.writer(open(filename, 'w', newline = ''), delimiter = '\t')
-  # Python 2
-  else:
-    return csv.writer(open(filename, 'wb'), delimiter = '\t')
-
 ################################################
 ## input: filename <tab> group (one per line) ##
 ################################################
 
 def parseFileList(inputFile):
-  reader = getTsvReader(inputFile)
+  reader = csv.reader(open(inputFile, 'r'), delimiter = '\t')
   fileList = list()
   groups = list()
   groupNames = list()
@@ -86,7 +69,7 @@ def parseFeatureClustersFileHandle(reader):
       rows = list()
 
 def parseFeatureClustersFile(clusterQuantFile):
-  reader = getTsvReader(clusterQuantFile)
+  reader = csv.reader(open(clusterQuantFile, 'r'), delimiter = '\t')
   i = 0
   for x in parseFeatureClustersFileHandle(reader):
     #if i > 10000:
@@ -110,35 +93,29 @@ class TriqlerInputRow(TriqlerInputRowBase):
   def toSimpleList(self):
     l = list(self)
     return l[:3] + l[6:-1] + l[-1]
-  
+
   def toString(self):
     return "\t".join(map(str, self.toList()))
 
 def parseTriqlerInputFile(triqlerInputFile):
-  reader = getTsvReader(triqlerInputFile)
+  reader = csv.reader(open(triqlerInputFile, 'r'), delimiter = '\t')
   headers = next(reader)
   hasLinkPEPs = "linkPEP" in headers
-  getUniqueProteins = lambda x : list(set([p for p in x if len(p.strip()) > 0]))
   intensityCol = 7 if hasLinkPEPs else 4
   seenPeptChargePairs = dict()
   for i, row in enumerate(reader):
-    if i % 1000000 == 0:
-      print("  Reading row", i)
-    
     intensity = float(row[intensityCol])
     if intensity > 0.0:
       if hasLinkPEPs:
-        proteins = getUniqueProteins(row[9:])
-        yield TriqlerInputRow(row[0], row[1], int(row[2]), int(row[3]), float(row[4]), int(row[5]), float(row[6]), intensity, row[8], proteins)
+        yield TriqlerInputRow(row[0], row[1], int(row[2]), int(row[3]), float(row[4]), int(row[5]), float(row[6]), intensity, row[8], row[9:])
       else:
         key = (int(row[2]), row[5])
         if key not in seenPeptChargePairs:
           seenPeptChargePairs[key] = len(seenPeptChargePairs)
-        proteins = getUniqueProteins(row[6:])
-        yield TriqlerInputRow(row[0], row[1], int(row[2]), (i+1) * 100, 0.0, seenPeptChargePairs[key], float(row[3]), intensity, row[5], proteins)
+        yield TriqlerInputRow(row[0], row[1], int(row[2]), (i+1) * 100, 0.0, seenPeptChargePairs[key], float(row[3]), intensity, row[5], row[6:])
 
 def hasLinkPEPs(triqlerInputFile):
-  reader = getTsvReader(triqlerInputFile)
+  reader = csv.reader(open(triqlerInputFile, 'r'), delimiter = '\t')
   headers = next(reader)
   return "linkPEP" in headers
 
@@ -161,7 +138,7 @@ def getPeptideQuantRowHeaders(runs):
   return PeptideQuantRowHeaders[:4] + runs + runs + runs + PeptideQuantRowHeaders[7:]
 
 def parsePeptideQuantFile(peptideQuantFile):
-  reader = getTsvReader(peptideQuantFile)
+  reader = csv.reader(open(peptideQuantFile, 'r'), delimiter = '\t')
   header = next(reader)
   numRuns = (header.index("peptide") - header.index("spectrum") - 1) / 3
   peptideQuantRows = list()
@@ -170,23 +147,15 @@ def parsePeptideQuantFile(peptideQuantFile):
       proteins = row[5+3*numRuns:]
     else:
       proteins = row[5+3*numRuns].split(";")
-    peptideQuantRows.append(PeptideQuantRow(float(row[0]), int(row[1]), int(row[2]), int(row[3]), np.array(map(float, row[4:4+numRuns])), np.array(map(float, row[4+numRuns:4+2*numRuns])), np.array(map(float, row[4+2*numRuns:4+3*numRuns])), row[4+3*numRuns], proteins))
+    peptideQuantRows.append(PeptideQuantRow(float(row[0]), int(row[1]), int(row[2]), int(row[3]), list(map(float, row[4:4+numRuns])), list(map(float, row[4+numRuns:4+2*numRuns])), list(map(float, row[4+2*numRuns:4+3*numRuns])), row[4+3*numRuns], proteins))
 
   runIdsWithGroup = header[4:4+numRuns]
-  maxGroups = len(set([runId.split(":")[0] for runId in runIdsWithGroup]))
+  maxGroups = max([int(runId.split(":")[0]) for runId in runIdsWithGroup])
   runIds = list()
   groups, groupLabels = [None] * maxGroups, [None] * maxGroups
-  groupNames = list()
   for fileIdx, runId in enumerate(runIdsWithGroup):
-    runIdSplitted = runId.split(":")
-    if len(runIdSplitted) == 3:
-      groupIdx, groupName, runId = runIdSplitted
-      groupIdx = int(groupIdx) - 1
-    else:
-      groupName, runId = runIdSplitted
-      if groupName not in groupNames:
-        groupNames.append(groupName)
-      groupIdx = groupNames.index(groupName)
+    groupIdx, groupName, runId = runId.split(":")
+    groupIdx = int(groupIdx) - 1
     runIds.append(runId)
     if groupName not in groupLabels:
       groupLabels[groupIdx] = groupName
@@ -195,7 +164,7 @@ def parsePeptideQuantFile(peptideQuantFile):
   return runIds, groups, groupLabels, peptideQuantRows
 
 def getPeptideQuantFileHeaders(peptideQuantFile):
-  reader = getTsvReader(peptideQuantFile)
+  reader = csv.reader(open(peptideQuantFile, 'r'), delimiter = '\t')
   header = next(reader)
   return header
 

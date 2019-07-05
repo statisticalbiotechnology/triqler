@@ -19,18 +19,13 @@ import numpy as np
 import collections
 
 from .. import parsers
-from ..triqler import __version__
+from ..triqler import __version__, __copyright__
 
 from . import normalize_intensities as normalize
 from . import percolator
 
 def main():
-  print('''Triqler-convert-quandenser version %s
-Copyright (c) 2018-2019 Matthew The. All rights reserved.
-Written by Matthew The (matthew.the@scilifelab.se) in the
-School of Engineering Sciences in Chemistry, Biotechnology and Health at the 
-Royal Institute of Technology in Stockholm.
-  ''' % (__version__))
+  print('Triqler.convert.quandenser version %s\n%s' % (__version__, __copyright__))
   args, params = parseArgs()
   
   convertQuandenserToTriqler(args.file_list_file, args.in_file, args.psm_files.split(","), args.out_file, params)

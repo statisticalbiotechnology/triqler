@@ -8,17 +8,12 @@ from __future__ import print_function
 import collections
 
 from .. import parsers
-from ..triqler import __version__
+from ..triqler import __version__, __copyright__
 
 from . import normalize_intensities as normalize
 
 def main():
-  print('''Triqler-convert-maxquant version %s
-Copyright (c) 2018-2019 Matthew The. All rights reserved.
-Written by Matthew The (matthew.the@scilifelab.se) in the
-School of Engineering Sciences in Chemistry, Biotechnology and Health at the 
-Royal Institute of Technology in Stockholm.
-  ''' % (__version__))
+  print('Triqler.convert.maxquant version %s\n%s' % (__version__, __copyright__))
   args, params = parseArgs()
   
   convertMqToTriqler(args.file_list_file, args.in_file, args.out_file, params)

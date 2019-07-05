@@ -3,6 +3,10 @@ from __future__ import print_function
 """triqler.triqler: provides entry point main()."""
 
 __version__ = "0.2.1"
+__copyright__ = '''Copyright (c) 2018-2019 Matthew The. All rights reserved.
+Written by Matthew The (matthew.the@scilifelab.se) in the
+School of Engineering Sciences in Chemistry, Biotechnology and Health at the 
+Royal Institute of Technology in Stockholm.'''
 
 import sys
 import os
@@ -22,12 +26,7 @@ from . import pgm
 from . import diff_exp
 
 def main():
-  print('''Triqler version %s
-Copyright (c) 2018-2019 Matthew The. All rights reserved.
-Written by Matthew The (matthew.the@scilifelab.se) in the
-School of Engineering Sciences in Chemistry, Biotechnology and Health at the 
-Royal Institute of Technology in Stockholm.
-  ''' % (__version__))
+  print('Triqler version %s\n%s' % (__version__, __copyright__))
   args, params = parseArgs()
   
   params['warningFilter'] = "ignore"

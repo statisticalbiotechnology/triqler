@@ -104,13 +104,16 @@ def fitLogitNormal(observedValues, params, plot):
     
     import matplotlib.pyplot as plt
     plt.figure()
+    plt.title('Curve fits for muDetect, sigmaDetect, muXIC and sigmaXIC', fontsize = 14)
     plt.bar(bins, vals, width = bins[1] - bins[0], alpha = 0.5, label = 'observed distribution')
     plt.plot(bins, funcLogitNormal(bins, *popt), 'g', label='logit-normal fit', linewidth = 2.0)
     plt.plot(bins, 0.5 + 0.5 * np.tanh((np.array(bins) - popt[0]) / popt[1]), 'm', label = "logit-part fit", linewidth = 2.0)
     plt.plot(bins, funcNorm(bins, popt[2], popt[3]), 'c', label = "normal-part fit", linewidth = 2.0)
-    plt.plot(bins, funcNorm(bins, *poptNormal), 'r', label='normal fit', linewidth = 2.0)
-    plt.xlabel("log10(intensity)", fontsize = 18)
+    plt.plot(bins, funcNorm(bins, *poptNormal), 'r', label='normal fit (for comparison)', linewidth = 2.0, alpha = 0.5)
+    plt.ylabel("relative frequency", fontsize = 14)
+    plt.xlabel("log10(intensity)", fontsize = 14)
     plt.legend()
+    plt.tight_layout()
     
 def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
   vals, bins = np.histogram(ys, bins = x, normed = True)
@@ -132,11 +135,12 @@ def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
   if plot:    
     import matplotlib.pyplot as plt
     plt.figure()
+    plt.title("Curve fit for " + " ".join(varNames), fontsize = 14)
     plt.bar(bins, vals, width = bins[1] - bins[0], label = 'observed distribution')
     plt.plot(bins, func(bins, *popt), 'g', label=fitLabel, linewidth = 2.0)
     if func == funcHypsec:
       poptNormal, _ = curve_fit(funcNorm, bins, vals)
-      plt.plot(bins, funcNorm(bins, *poptNormal), 'r', label = 'normal fit', linewidth = 2.0)
+      plt.plot(bins, funcNorm(bins, *poptNormal), 'r', label = 'normal fit (for comparison)', linewidth = 2.0, alpha = 0.5)
       
       if False:
         funcStudentT = lambda x, df, mu, sigma : t.pdf(x, df = df, loc = mu, scale = sigma)
@@ -154,7 +158,8 @@ def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
         funcLogNorm = lambda x, mu, sigma : norm.logpdf(x, loc = mu, scale = sigma)
         funcLogCauchy = lambda x, mu, sigma : cauchy.logpdf(x, loc = mu, scale = sigma)
         
-        plt.xlabel(xlabel, fontsize = 18)
+        plt.ylabel("relative frequency", fontsize = 14)
+        plt.xlabel(xlabel, fontsize = 14)
         plt.legend()
         
         plt.figure()
@@ -162,8 +167,10 @@ def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
         plt.plot(bins, funcLogNorm(bins, *poptNormal), 'r', label = 'normal log fit', linewidth = 2.0)
         plt.plot(bins, funcLogStudentT(bins, *poptStudentT), 'm', label = 'student-t log fit', linewidth = 2.0)
         plt.plot(bins, funcLogCauchy(bins, *poptCauchy), 'c', label = 'cauchy log fit', linewidth = 2.0)
-    plt.xlabel(xlabel, fontsize = 18)
+    plt.ylabel("relative frequency", fontsize = 14)
+    plt.xlabel(xlabel, fontsize = 14)
     plt.legend()
+    plt.tight_layout()
 
 # this is an optimized version of applying parsers.weightedGeomAvg to each of the columns separately
 def getProteinQuant(quantMatrixNormalized, quantRows):

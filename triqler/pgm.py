@@ -12,7 +12,7 @@ from . import parsers
 from . import convolution_dp
 from . import hyperparameters
 
-def getPosteriors(quantRowsOrig, params, returnDistributions = False):
+def getPosteriors(quantRowsOrig, params):
   quantRows, quantMatrix = parsers.getQuantMatrix(quantRowsOrig)
   
   pProteinQuantsList, bayesQuantRow = getPosteriorProteinRatios(quantMatrix, quantRows, params)
@@ -20,10 +20,12 @@ def getPosteriors(quantRowsOrig, params, returnDistributions = False):
   pProteinGroupDiffs, muGroupDiffs = getProteinGroupsDiffPosteriors(pProteinGroupQuants, params)
   
   probsBelowFoldChange = getProbBelowFoldChangeDict(pProteinGroupDiffs, params)
-  if returnDistributions:
-    return bayesQuantRow, muGroupDiffs, probsBelowFoldChange, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs
+  if params['returnPosteriors']:
+    posteriorDists = (pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs)
   else:
-    return bayesQuantRow, muGroupDiffs, probsBelowFoldChange
+    posteriorDists = None
+  
+  return bayesQuantRow, muGroupDiffs, probsBelowFoldChange, posteriorDists
 
 def getDummyPosteriors(params):
   bayesQuantRow = [1.0 for g in params['groups'] for x in g]
@@ -31,7 +33,8 @@ def getDummyPosteriors(params):
   probsBelowFoldChange, muGroupDiffs = dict(), dict()
   for groupId1, groupId2 in itertools.combinations(range(numGroups), 2):
     probsBelowFoldChange[(groupId1,groupId2)], muGroupDiffs[(groupId1,groupId2)] = 1.0, 0.0
-  return bayesQuantRow, muGroupDiffs, probsBelowFoldChange
+  posteriorDists = None
+  return bayesQuantRow, muGroupDiffs, probsBelowFoldChange, posteriorDists
   
 def getPosteriorProteinRatios(quantMatrix, quantRows, params, maxIterations = 50, bayesQuantRow = None):
   numSamples = len(quantMatrix[0])

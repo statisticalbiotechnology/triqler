@@ -16,7 +16,16 @@ def doDiffExp(params, peptQuantRows, outputFile, proteinQuantificationMethod, se
   
   proteinOutputRows = proteinQuantificationMethod(peptQuantRows, params, proteinModifier, getEvalFeatures)
   
-  outputFile, outputFileExt = getOutpuFileExtension(outputFile)
+  if len(params['proteinPosteriorsOutput']) > 0:
+    printProteinPosteriors(proteinOutputRows, params)
+    
+  if len(params['groupPosteriorsOutput']) > 0:
+    printGroupPosteriors(proteinOutputRows, params)
+  
+  if len(params['foldChangePosteriorsOutput']) > 0:
+    printFoldChangePosteriors(proteinOutputRows, params)
+  
+  outputFile, outputFileExt = getOutputFileExtension(outputFile)
   numGroups = len(params['groups'])
   if numGroups >= 2:
     for groupId1, groupId2 in itertools.combinations(range(numGroups), 2):
@@ -30,7 +39,7 @@ def doDiffExp(params, peptQuantRows, outputFile, proteinQuantificationMethod, se
       proteinOutputRowsGroup = selectComparison(proteinOutputRows, (groupId1, groupId2))
       if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
         evalFunctions = [lambda protein, evalFeatures : evalTruePositiveTtest(params["trueConcentrationsDict"], protein, groupId1, groupId2, evalFeatures[-2], params)]
-      getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params)
+      printResults(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params)
   
     if False: # The ANOVA-like test seems to work as expected for low number of groups (<5), but creates many false positive with high numbers of groups
       proteinOutputFile = outputFile
@@ -40,9 +49,9 @@ def doDiffExp(params, peptQuantRows, outputFile, proteinQuantificationMethod, se
         evalFunctions = [lambda protein, evalFeatures : evalTruePositiveANOVA(params["trueConcentrationsDict"], protein)]
   else:
     print("Comparing", params['groupLabels'][0], "to", params['groupLabels'][1] + ", output file:", proteinOutputFile)
-    getQvals(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params)
+    printResults(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params)
 
-def getOutpuFileExtension(outputFile):
+def getOutputFileExtension(outputFile):
   fileName = outputFile.split("/")[-1]
   if "." in fileName:
     return outputFile, "." + fileName.split(".")[-1]
@@ -118,8 +127,9 @@ def getFoldChange(quants, params):
 def getFc(quants, params, groupId1, groupId2):
   return np.log2(np.mean([quants[x] for x in params['groups'][groupId1]]) / np.mean([quants[x] for x in params['groups'][groupId2]]))
   
-def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params, qvalThreshold = 0.05):
+def printResults(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params, qvalThreshold = 0.05):
   writer = parsers.getTsvWriter(outputFile)
+  
   plotCalibration = len(evalFunctions) > 0
   if plotCalibration:
     evalTruePositives = evalFunctions[0]
@@ -137,13 +147,13 @@ def getQvals(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params, q
   
   if 'pvalues' in qvalMethod:
     targetPvalues = list()
-    for i, (_, _, _, _, evalFeatures, _, _, _) in enumerate(proteinOutputRows):
+    for i, (_, _, _, _, evalFeatures, _, _, _, _) in enumerate(proteinOutputRows):
       targetPvalues.append(evalFeatures[-1])
     reportedQvalsPval, reportedPEPsPval = qvality.getQvaluesFromPvalues(targetPvalues, includePEPs = True)
   
   nextScores = [x[0] for x in proteinOutputRows] + [np.nan]
   numSignificant = 0
-  for i, (combinedPEP, _, protein, quantRows, evalFeatures, numPeptides, proteinIdPEP, quants) in enumerate(proteinOutputRows):
+  for i, (combinedPEP, _, protein, quantRows, evalFeatures, numPeptides, proteinIdPEP, quants, _) in enumerate(proteinOutputRows):
     if 'pvalues_with_fc' in qvalMethod and np.abs(evalFeatures[-2]) < params['foldChangeEval']:
       continue
     
@@ -202,3 +212,41 @@ def fdrsToQvals(fdrs):
     for i in range(len(fdrs)-2, -1, -1):
       qvals[i] = min(qvals[i+1], fdrs[i])
   return qvals
+
+def printProteinPosteriors(proteinOutputRows, params):
+  print("Writing protein posteriors to", params['proteinPosteriorsOutput'])
+  writer = parsers.getTsvWriter(params['proteinPosteriorsOutput'])
+  
+  writer.writerow(["protein", "group:run"] + ['%.4g' % x for x in params['proteinQuantCandidates']])
+  for i, (_, protein, _, _, _, _, _, posteriorDists) in enumerate(proteinOutputRows):
+    if posteriorDists:
+      pProteinQuantsList, _, _ = posteriorDists
+      for run, posterior in zip(parsers.getRunIds(params), pProteinQuantsList):
+        writer.writerow([protein, run] + ['%.4g' % p for p in posterior])
+    
+def printGroupPosteriors(proteinOutputRows, params):
+  print("Writing treatment group posteriors to", params['groupPosteriorsOutput'])
+  writer = parsers.getTsvWriter(params['groupPosteriorsOutput'])
+  
+  writer.writerow(["protein", "group"] + ['%.4g' % x for x in params['proteinQuantCandidates']])
+  for i, (_, protein, _, _, _, _, _, posteriorDists) in enumerate(proteinOutputRows):
+    if posteriorDists:
+      _, pProteinGroupQuants, _ = posteriorDists
+
+      numGroups = len(params['groups'])
+      for groupId, posterior in zip(range(numGroups), pProteinGroupQuants):
+        writer.writerow([protein, params['groupLabels'][groupId]] + ['%.4g' % p for p in posterior])
+
+def printFoldChangePosteriors(proteinOutputRows, params):
+  print("Writing fold change posteriors to", params['foldChangePosteriorsOutput'])
+  writer = parsers.getTsvWriter(params['foldChangePosteriorsOutput'])
+  
+  writer.writerow(["protein", "comparison"] + ['%.4g' % x for x in params['proteinDiffCandidates']])
+  for i, (_, protein, _, _, _, _, _, posteriorDists) in enumerate(proteinOutputRows):
+    if posteriorDists:
+      _, _, pProteinGroupDiffs = posteriorDists
+      numGroups = len(params['groups'])
+      if numGroups >= 2:
+        for groupId1, groupId2 in itertools.combinations(range(numGroups), 2):
+          writer.writerow([protein, params['groupLabels'][groupId1] + "_vs_" + params['groupLabels'][groupId2]] + ['%.4g' % p for p in pProteinGroupDiffs[(groupId1, groupId2)]])
+

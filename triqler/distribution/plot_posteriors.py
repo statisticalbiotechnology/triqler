@@ -6,6 +6,7 @@ import sys
 import os
 import warnings
 import itertools
+import textwrap
 
 import numpy as np
 import matplotlib
@@ -31,26 +32,36 @@ def main():
 def parseArgs():
   import argparse
   apars = argparse.ArgumentParser(
-      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+      formatter_class=argparse.RawDescriptionHelpFormatter,
+      description=textwrap.dedent('''Plots posterior distribution for a given protein <P>. 
+      
+There are two different options for <IN_FILE>: 
+1. use one of the posterior output files of Triqler, generated with the 
+   --write_<mode>_posteriors flags. This will only print the particular 
+   mode (protein, group or fold change).
+2. use a Triqler input file. This estimates hyperparameters from the 
+   entire input file and subsequently computes and plots posteriors from 
+   all modes.
+'''))
 
   apars.add_argument('in_file', default=None, metavar = "IN_FILE",
-                     help='''Triqler input file.
-                          ''')
+                     help='Triqler distribution output file or Triqler input file')
   
   apars.add_argument('--protein_id', metavar='P', 
-                     help='Protein ID, can be a partial match, e.g. "P39744" will match "sp|P39744|NOC2_YEAST".',
+                     help='Protein ID, can be a partial match, e.g. "P39744" will match "sp|P39744|NOC2_YEAST"',
                      required = True)
   
   apars.add_argument('--fold_change_eval', type=float, default=1.0, metavar='F',
-                     help='log2 fold change evaluation threshold.')
+                     help='log2 fold change evaluation threshold')
                      
-  apars.add_argument('--decoy_pattern', default = "decoy_", metavar='P', 
-                     help='Prefix for decoy proteins.')
+  apars.add_argument('--decoy_pattern', default = "decoy_", metavar='D', 
+                     help='Prefix for decoy proteins (only when Triqler input file is used as input)')
   
   # ------------------------------------------------
   args = apars.parse_args()
   
   params = dict()
+  params['returnPosteriors'] = True
   params["foldChangeEval"] = args.fold_change_eval
   params["decoyPattern"] = args.decoy_pattern
   params["trueConcentrationsDict"] = dict()
@@ -59,7 +70,29 @@ def parseArgs():
     
   return args, params
   
-def plotPosterior(triqlerInputFile, protein, params):
+def plotPosterior(inputFile, protein, params):
+  with open(inputFile, 'r') as f:
+    line = f.readline()
+    headerCols = line.split('\t')
+    if len(headerCols) < 2:
+      sys.exit("Could not identify input format.")
+    elif headerCols[0] == 'fileIdx':
+      plotPosteriorFromTriqlerInput(inputFile, protein, params)
+    elif headerCols[1] == 'group:run':
+      params['proteinQuantCandidates'] = np.array(map(float, headerCols[2:]))
+      plotProteinPosteriors(inputFile, protein, params)
+    elif headerCols[1] == 'group':
+      params['proteinQuantCandidates'] = np.array(map(float, headerCols[2:]))
+      plotGroupPosteriors(inputFile, protein, params)
+    elif headerCols[1] == 'comparison':
+      params['proteinDiffCandidates'] = np.array(map(float, headerCols[2:]))
+      plotFoldChangePosteriors(inputFile, protein, params)
+    else:
+      sys.exit("Could not identify input format.")
+  
+  plt.show()
+
+def plotPosteriorFromTriqlerInput(triqlerInputFile, protein, params):
   if not os.path.isfile(triqlerInputFile):
     sys.exit("Could not locate input file %s. Check if the path to the input file is correct." % triqlerInputFile)
   
@@ -199,8 +232,6 @@ def plotPosteriorCalibration(peptQuantRows, peptidePEPThreshold, params, protein
   #plt.subplots_adjust(wspace=0, hspace=0)
   plt.legend(loc = 'lower right', fontsize = 14)
   
-  plt.show()
-  
 def plotPosteriors(protQuantRows, params):
   numGroups = len(params['groups'])
   
@@ -223,7 +254,8 @@ def plotPosteriors(protQuantRows, params):
     #print("Protein abundance and p-value semi naive quant")
     #printStats(geoAvgQuantRow, params['groups'])
     
-    bayesQuantRow, _, probsBelowFoldChange, pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs = pgm.getPosteriors(quantRows, params, returnDistributions = True)
+    bayesQuantRow, _, probsBelowFoldChange, posteriorDists = pgm.getPosteriors(quantRows, params)
+    pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs = posteriorDists
     
     print("Protein abundance (expected value) and p-value")
     printStats(bayesQuantRow, params['groups'])
@@ -302,7 +334,8 @@ def plotPosteriorProteinGroupsDiffs(pProteinGroupDiffs, params):
     
     #if groupId1 + 1 == groupId2: # only print(x label on diagonal plots)
     #  plt.ylabel("log2(protein quant group%d / protein quant group%d)" % (groupId1 + 1, groupId2 + 1))
-    plt.ylim([np.floor(log2diff[np.argmax(pDifference > 1e-4)]), np.ceil(log2diff[::-1][np.argmax(pDifference[::-1] > 1e-4)])])
+    plt.ylim([-1*params['maxFoldChange'], params['maxFoldChange']])
+    #plt.ylim([np.floor(log2diff[np.argmax(pDifference > 1e-4)]), np.ceil(log2diff[::-1][np.argmax(pDifference[::-1] > 1e-4)])])
 
 def plotViolin(pDifference, log2diff, label, color):
   log2diff = log2diff[np.where(np.abs(pDifference) > 1e-4)]
@@ -371,6 +404,54 @@ def plotPosteriorProteinRatios(pProteinQuantsList, params, maxCols = 15):
     if groupId == rows - 1:
       plt.xlabel('log10(rel. protein quant)', fontsize = 14)
   plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+def plotProteinPosteriors(inputFile, protein, params):
+  pProteinQuantsList = list()
+  params['groupLabels'] = list()
+  params['groups'] = list()
+  params['runIds'] = list()
+  for fileIdx, (protein, groupRun, posterior) in enumerate(parsers.parsePosteriorFile(inputFile, refProtein = protein)):
+    pProteinQuantsList.append(posterior)
+    group = ":".join(groupRun.split(":")[:-1])
+    run = groupRun.split(":")[-1]
+    groupIdx = addGroup(group, params)
+    params['groups'][groupIdx].append(fileIdx)
+    params['runIds'].append(run)
+  
+  plotPosteriorProteinRatios(pProteinQuantsList, params)
+  
+def plotGroupPosteriors(inputFile, protein, params):
+  pProteinGroupQuants = list()
+  params['groupLabels'] = list()
+  params['groups'] = list()
+  for protein, group, posterior in parsers.parsePosteriorFile(inputFile, refProtein = protein):
+    pProteinGroupQuants.append(posterior)
+    addGroup(group, params)
+  
+  plotPosteriorProteinGroupsRatios(pProteinGroupQuants, params)
+  
+def plotFoldChangePosteriors(inputFile, protein, params):
+  pProteinGroupDiffs = dict()
+  params['groupLabels'] = list()
+  params['groups'] = list()
+  params['maxFoldChange'] = 0.0
+  for protein, comparison, posterior in parsers.parsePosteriorFile(inputFile, refProtein = protein):
+    group1, group2 = comparison.split("_vs_")
+    groupId1 = addGroup(group1, params)
+    groupId2 = addGroup(group2, params)
+    pProteinGroupDiffs[(groupId1, groupId2)] = posterior
+  
+    log2diff = np.log2(np.power(10, params['proteinDiffCandidates']))
+    params['maxFoldChange'] = max([params['maxFoldChange'], np.abs(np.floor(log2diff[np.argmax(posterior > 1e-4)]))])
+    params['maxFoldChange'] = max([params['maxFoldChange'], np.abs(np.ceil(log2diff[::-1][np.argmax(posterior[::-1] > 1e-4)]))])
+  
+  plotPosteriorProteinGroupsDiffs(pProteinGroupDiffs, params)
+
+def addGroup(group, params):
+  if group not in params['groupLabels']:
+      params['groupLabels'].append(group)
+      params['groups'].append([])
+  return params['groupLabels'].index(group)
 
 if __name__ == "__main__":
    main()

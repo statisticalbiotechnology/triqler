@@ -142,6 +142,19 @@ def hasLinkPEPs(triqlerInputFile):
   headers = next(reader)
   return "linkPEP" in headers
 
+#####################################
+## Triqler posterior output files  ##
+#####################################
+
+def parsePosteriorFile(peptideQuantFile, refProtein = ""):
+  reader = getTsvReader(peptideQuantFile)
+  headers = next(reader)
+  
+  for row in reader:
+    protein = row[0]
+    if len(refProtein) == 0 or refProtein in protein:
+      yield protein, row[1], np.array(map(float, row[2:]))
+
 ##############################
 ## Peptide quant row files  ##
 ##############################

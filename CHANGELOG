@@ -1,3 +1,8 @@
+v0.03
+* Added support for converting Quandenser and MaxQuant results to Triqler input format (#5)
+* Added support for printing posterior distributions to a file
+* Added support for plotting posterior distributions and hyperparameter estimation fits
+
 v0.02.1
 * Fixed problems with CSV reading and writing on Windows (#9)
 * Fixed lambda function pickling problem with multiprocessing on Windows (#8)

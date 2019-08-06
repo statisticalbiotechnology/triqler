@@ -76,7 +76,7 @@ def plotPosterior(inputFile, protein, params):
     headerCols = line.split('\t')
     if len(headerCols) < 2:
       sys.exit("Could not identify input format.")
-    elif headerCols[0] == 'fileIdx':
+    elif headerCols[0] == 'run':
       plotPosteriorFromTriqlerInput(inputFile, protein, params)
     elif headerCols[1] == 'group:run':
       params['proteinQuantCandidates'] = np.array(map(float, headerCols[2:]))

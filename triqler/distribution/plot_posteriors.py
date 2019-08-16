@@ -22,6 +22,8 @@ from .. import diff_exp
 
 def main():
   print('Triqler.distribution.plot_posteriors version %s\n%s' % (__version__, __copyright__))
+  print('Issued command:', os.path.basename(__file__) + " " + " ".join(map(str, sys.argv[1:])))
+  
   args, params = parseArgs()
   
   params['warningFilter'] = "ignore"

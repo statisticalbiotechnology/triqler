@@ -26,6 +26,8 @@ from . import percolator
 
 def main():
   print('Triqler.convert.quandenser version %s\n%s' % (__version__, __copyright__))
+  print('Issued command:', os.path.basename(__file__) + " " + " ".join(map(str, sys.argv[1:])))
+  
   args, params = parseArgs()
   
   convertQuandenserToTriqler(args.file_list_file, args.in_file, args.psm_files.split(","), args.out_file, params)

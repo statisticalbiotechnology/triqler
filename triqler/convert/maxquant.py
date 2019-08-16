@@ -6,6 +6,7 @@ MaxQuant.
 from __future__ import print_function
 
 import sys
+import os
 import collections
 
 import numpy as np
@@ -17,7 +18,8 @@ from . import normalize_intensities as normalize
 
 def main():
   print('Triqler.convert.maxquant version %s\n%s' % (__version__, __copyright__))
-  print('Issued command:', "maxquant.py " + " ".join(map(str, sys.argv[1:])))
+  print('Issued command:', os.path.basename(__file__) + " " + " ".join(map(str, sys.argv[1:])))
+  
   args, params = parseArgs()
   
   convertMqToTriqler(args.file_list_file, args.in_file, args.out_file, params)
@@ -109,7 +111,7 @@ def convertMqToTriqler(fileListFile, mqEvidenceFile, triqlerInputFile, params):
     if row[intensityCol] == "" or float(row[scoreCol]) <= 0:
       continue
     
-    triqlerRow = parsers.TriqlerInputRow(sample, condition, row[chargeCol], row[idCol], linkPEP, featureClusterIdx, np.log(float(row[scoreCol])), float(row[intensityCol]), row[peptCol], proteins)
+    triqlerRow = parsers.TriqlerInputRow(sample, condition, row[chargeCol], lineIdx, linkPEP, featureClusterIdx, np.log(float(row[scoreCol])), float(row[intensityCol]), row[peptCol], proteins)
     peptideToFeatureMap[key].append((triqlerRow, float(row[rtCol]), fraction))
   
   if not params['skipNormalization']:

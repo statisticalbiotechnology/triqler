@@ -51,9 +51,12 @@ def getFactorArrays(factorPairs, N = 2000):
   factorArrays = defaultdict(list)
   for i, key in enumerate(sorted(factorPairs.keys())):
     print("Calculating normalization factors for run", i+1, "using", len(factorPairs[key]), "precursors")
+    #medianFactor = np.median([x[1] for x in factorPairs[key]])
+    #print("Calculating normalization factors for run", i+1, "using", len(factorPairs[key]), "precursors", medianFactor)
     factorPairs[key] = sorted(factorPairs[key], key = lambda x : x[0])
     rTimes = [x[0] for x in factorPairs[key]]
     factors = [x[1] for x in factorPairs[key]]
+    #factors = [medianFactor for x in factorPairs[key]]
     runningMeans = runningMean(factors, N)
     factorArrays[key] = zip(rTimes, runningMeans)
   return factorArrays

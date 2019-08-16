@@ -2,7 +2,7 @@ from __future__ import print_function
 
 """triqler.triqler: provides entry point main()."""
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __copyright__ = '''Copyright (c) 2018-2019 Matthew The. All rights reserved.
 Written by Matthew The (matthew.the@scilifelab.se) in the
 School of Engineering Sciences in Chemistry, Biotechnology and Health at the 
@@ -27,6 +27,8 @@ from . import diff_exp
 
 def main():
   print('Triqler version %s\n%s' % (__version__, __copyright__))
+  print('Issued command:', os.path.basename(__file__) + " " + " ".join(map(str, sys.argv[1:])))
+  
   args, params = parseArgs()
   
   params['warningFilter'] = "ignore"

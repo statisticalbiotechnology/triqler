@@ -1,5 +1,6 @@
 #!/bin/bash
 
+export OMP_NUM_THREADS=4
 # to replace the reference results execute the following line:
 #   rename -f 's/iPRG2016./iPRG2016_ref./g' example/iPRG2016.p*; mv example/iPRG2016.tsv.pqr.tsv example/iPRG2016_ref.tsv.pqr.tsv
 

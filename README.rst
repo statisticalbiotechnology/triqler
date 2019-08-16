@@ -1,6 +1,12 @@
 Triqler: TRansparent Identification-Quantification-Linked Error Rates
 =====================================================================
 
+Method description / Citation
+-----------------------------
+
+The, M. & Käll, L. (2019). Integrated identification and quantification error probabilities for shotgun proteomics. *Molecular & Cellular Proteomics, 18* (3), 561-570.
+
+
 Requirements
 ------------
 
@@ -10,6 +16,7 @@ Packages needed:
 
 - numpy 1.12+
 - scipy 0.17+
+
 
 Installation via ``pip``
 ************************
@@ -33,9 +40,12 @@ Usage
 ::
 
   usage: python -m triqler [-h] [--out_file OUT] [--fold_change_eval F]
-                     [--decoy_pattern P] [--min_samples N] [--num_threads N]
-                     [--ttest]
-                     IN_FILE
+                   [--decoy_pattern P] [--min_samples N] [--num_threads N]
+                   [--ttest] [--write_spectrum_quants]
+                   [--write_protein_posteriors P_OUT]
+                   [--write_group_posteriors G_OUT]
+                   [--write_fold_change_posteriors F_OUT]
+                   IN_FILE
 
   positional arguments:
     IN_FILE               List of PSMs with abundances (not log transformed!)
@@ -54,9 +64,23 @@ Usage
                           quantified in. (default: 2)
     --num_threads N       Number of threads, by default this is equal to the
                           number of CPU cores available on the device. (default:
-                          auto detect)
+                          8)
     --ttest               Use t-test for evaluating differential expression
                           instead of posterior probabilities. (default: False)
+    --write_spectrum_quants
+                          Write quantifications for consensus spectra. Only
+                          works if consensus spectrum index are given in input.
+                          (default: False)
+    --write_protein_posteriors P_OUT
+                          Write raw data of protein posteriors to the specified
+                          file in TSV format. (default: )
+    --write_group_posteriors G_OUT
+                          Write raw data of treatment group posteriors to the
+                          specified file in TSV format. (default: )
+    --write_fold_change_posteriors F_OUT
+                          Write raw data of fold change posteriors to the
+                          specified file in TSV format. (default: )
+
 
 Example
 -------

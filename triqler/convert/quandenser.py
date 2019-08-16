@@ -77,14 +77,13 @@ def parseArgs():
   return args, params
   
 def convertQuandenserToTriqler(fileListFile, clusterQuantFile, psmsOutputFiles, peptQuantRowFile, params):
-  fileList, groups, groupLabels = parsers.parseFileList(fileListFile)
-  fileNameConditionPairs = [[x.split("/")[-1], parsers.getGroupLabel(idx, groups, groupLabels)] for idx, x in enumerate(fileList)]
+  fileInfoList = parsers.parseFileList(fileListFile)
   
   if not params['skipNormalization']:
     clusterQuantFileNormalized = clusterQuantFile.replace(".tsv", ".normalized.tsv")
     if not os.path.isfile(clusterQuantFileNormalized):
       print("Applying retention-time dependent intensity normalization")
-      minRunsObservedIn = len(fileNameConditionPairs) / 3 + 2
+      minRunsObservedIn = len(fileInfoList) / 3 + 1
       normalize.normalizeIntensitiesRtimeBased(clusterQuantFile, clusterQuantFileNormalized, minRunsObservedIn, plotScatter = params['plotScatter'])
     else:
       print("Reusing previously generated normalized feature group file:", clusterQuantFileNormalized, ". Remove this file to redo normalization")
@@ -94,7 +93,7 @@ def convertQuandenserToTriqler(fileListFile, clusterQuantFile, psmsOutputFiles, 
   
   specToPeptideMap = parsePsmsPoutFiles(psmsOutputFiles)
   
-  printTriqlerInputFile(fileNameConditionPairs, clusterQuantFile, peptQuantRowFile, specToPeptideMap, params)
+  printTriqlerInputFile(fileInfoList, clusterQuantFile, peptQuantRowFile, specToPeptideMap, params)
     
 def parsePsmsPoutFiles(psmsOutputFiles):
   specToPeptideMap = collections.defaultdict(list)
@@ -110,7 +109,7 @@ def parsePeptideLinkPEP(peptLinkPEP):
   spectrumIdx, linkPEP = peptLinkPEP.split(";")
   return int(spectrumIdx), float(linkPEP)
 
-def printTriqlerInputFile(fileNameConditionPairs, clusterQuantFile, quantRowFile, specToPeptideMap, params):
+def printTriqlerInputFile(fileInfoList, clusterQuantFile, quantRowFile, specToPeptideMap, params):
   print("Parsing cluster quant file")
   
   writer = parsers.getTsvWriter(quantRowFile)
@@ -122,7 +121,7 @@ def printTriqlerInputFile(fileNameConditionPairs, clusterQuantFile, quantRowFile
   featureClusterRows = list()
   spectrumToFeatureMatch = dict() # stores the best peptideQuantRow per (peptide, spectrumIdx)-pair
   for featureClusterIdx, featureCluster in enumerate(parsers.parseFeatureClustersFile(clusterQuantFile)):
-    if featureClusterIdx % 10000 == 0:
+    if featureClusterIdx % 50000 == 0:
       print("Processing feature group", featureClusterIdx + 1)
     
     rows = list()
@@ -133,8 +132,8 @@ def printTriqlerInputFile(fileNameConditionPairs, clusterQuantFile, quantRowFile
         peptide, identPEP, proteins, searchScore, charge = specToPeptideMap(spectrumIdx)
         if pc.intensity > 0.0 and linkPEP < 1.0 and (params["retainUnidentified"] or peptide != "NA"):
           # run condition charge spectrumId linkPEP featureClusterId search_score intensity peptide proteins
-          run, condition = fileNameConditionPairs[fileIdx]
-          row = parsers.TriqlerInputRow(run, condition, charge, spectrumIdx, linkPEP, featureClusterIdx, searchScore, pc.intensity, peptide, proteins)
+          run, condition, sample, fraction = fileInfoList[fileIdx]
+          row = parsers.TriqlerInputRow(sample, condition, charge, spectrumIdx, linkPEP, featureClusterIdx, searchScore, pc.intensity, peptide, proteins)
           rows.append(row)
     
     newRows = list()

@@ -11,7 +11,7 @@ from .. import parsers
 
 def normalizeIntensitiesRtimeBased(clusterQuantExtraFile, clusterQuantExtraNormalizedFile, minRunsObservedIn, plotScatter = False, plotRunningAverage = False):
   featureGroups = parsers.parseFeatureClustersFile(clusterQuantExtraFile)
-  factorPairs = getIntensityFactorPairs(featureGroups, sortKey = lambda x : (x.fileName, -1.0 * x.intensity, x.rTime), minRunsObservedIn = minRunsObservedIn)
+  factorPairs = getIntensityFactorPairs(featureGroups, sortKey = lambda x : (1, x.fileName, -1.0 * x.intensity, x.rTime), minRunsObservedIn = minRunsObservedIn)
   
   if plotScatter:
     plotFactorScatter(factorPairs)
@@ -23,16 +23,17 @@ def normalizeIntensitiesRtimeBased(clusterQuantExtraFile, clusterQuantExtraNorma
   
   normalizeIntensitiesWithFactorArrays(clusterQuantExtraFile, rTimeFactorArrays, clusterQuantExtraNormalizedFile)
 
-def getIntensityFactorPairs(featureGroups, sortKey, minRunsObservedIn):
+def getIntensityFactorPairs(featureGroups, sortKey, minRunsObservedIn, fraction = 1):
   factorPairs = defaultdict(list)
   for i, featureGroup in enumerate(featureGroups):
     localFactorPairs = dict()
     sortedFeatures = sorted(featureGroup, key = sortKey)
     for row in sortedFeatures:
-      fileName, intensity, rTime = sortKey(row)
+      rowFraction, fileName, intensity, rTime = sortKey(row)
       intensity *= -1.0
-      if not np.isnan(intensity) and fileName not in localFactorPairs: # and row.charge == 2:
+      if fraction == rowFraction and not np.isnan(intensity) and fileName not in localFactorPairs:
         localFactorPairs[fileName] = (np.log2(intensity), rTime)
+    
     if len(localFactorPairs) >= minRunsObservedIn:
       keys = sorted(localFactorPairs.keys())
       masterKey = keys[0]
@@ -41,24 +42,29 @@ def getIntensityFactorPairs(featureGroups, sortKey, minRunsObservedIn):
       for key in keys[1:]:
         factori = factorPairs[masterKey][-1][1] - (localFactorPairs[masterKey][0] - localFactorPairs[key][0])
         factorPairs[key].append((localFactorPairs[key][1], factori))
-    if (i+1) % 10000 == 0:
-      print("Processing cluster", i+1)
+    #if (i+1) % 100000 == 0:
+    #  print("Processing cluster", i+1)
   return factorPairs
 
 # returns running averages of factors
 def getFactorArrays(factorPairs, N = 2000):
   factorArrays = defaultdict(list)
   for i, key in enumerate(sorted(factorPairs.keys())):
-    print("Calculating factor array", i+1)
+    print("Calculating normalization factors for run", i+1, "using", len(factorPairs[key]), "precursors")
     factorPairs[key] = sorted(factorPairs[key], key = lambda x : x[0])
     rTimes = [x[0] for x in factorPairs[key]]
     factors = [x[1] for x in factorPairs[key]]
-    factorArrays[key] = zip(rTimes[int(N/2):int(-N/2)], runningMean(factors, N))
+    runningMeans = runningMean(factors, N)
+    factorArrays[key] = zip(rTimes, runningMeans)
   return factorArrays
 
 def runningMean(x, N):
-  cumsum = np.cumsum(np.insert(x, 0, 0)) 
-  return (cumsum[N:] - cumsum[:-N]) / N 
+  if len(x) <= N:
+    return np.array([np.mean(x)]*len(x))
+  else:
+    cumsum = np.cumsum(np.insert(x, 0, 0))
+    rm = (cumsum[N:] - cumsum[:-N]) / N 
+    return np.concatenate(([rm[0]]*(N/2), rm, [rm[-1]]*(N/2)))
   
 def normalizeIntensitiesWithFactorArrays(clusterQuantExtraFile, rTimeFactorArrays, clusterQuantExtraNormalizedFile):
   rTimeArrays, factorArrays = dict(), dict()
@@ -73,7 +79,7 @@ def normalizeIntensitiesWithFactorArrays(clusterQuantExtraFile, rTimeFactorArray
       outRow[4] = getNormalizedIntensity(rTimeArrays[row.fileName], factorArrays[row.fileName], row.rTime, row.intensity)
       writer.writerow(outRow)
     writer.writerow([])
-    if (i+1) % 10000 == 0:
+    if (i+1) % 50000 == 0:
       print("Writing cluster", i+1)
 
 def getNormalizedIntensity(rTimeArray, factorArray, rTime, intensity):
@@ -81,7 +87,7 @@ def getNormalizedIntensity(rTimeArray, factorArray, rTime, intensity):
   return intensity / (2 ** factorArray[rTimeIndex])
 
 def plotFactorScatter(factorPairs):
-  import scatter
+  from . import scatter
   import matplotlib.pyplot as plt
   scatter.prepareSubplots()
   for i, key in enumerate(sorted(factorPairs.keys())):
@@ -98,7 +104,7 @@ def plotFactorScatter(factorPairs):
   plt.show()
 
 def plotFactorRunningAverage(factorArrays):
-  import scatter
+  from . import scatter
   import matplotlib.pyplot as plt
   scatter.prepareSubplots()
   for i, key in enumerate(sorted(factorArrays.keys())):

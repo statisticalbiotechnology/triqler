@@ -157,7 +157,10 @@ def getPeptQuantRowMap(triqlerInputFile, decoyPattern):
   seenSpectra = set()
   targetScores, decoyScores = list(), list()
   runCondPairs = list()
-  for trqRow in parsers.parseTriqlerInputFile(triqlerInputFile):
+  for i, trqRow in enumerate(parsers.parseTriqlerInputFile(triqlerInputFile)):
+    if i % 1000000 == 0:
+      print("  Reading row", i)
+    
     peptQuantRowMap[trqRow.featureClusterId].append(trqRow)
     if (trqRow.run, trqRow.condition) not in runCondPairs:
       runCondPairs.append((trqRow.run, trqRow.condition))
@@ -204,7 +207,7 @@ def selectBestFeaturesPerRunAndSpectrum(peptQuantRowMap, getPEPFromScore, params
   featureClusterRows = list()
   spectrumToFeatureMatch = dict() # stores the best peptideQuantRow per (protein, spectrumIdx)-pair
   for featureClusterIdx, trqRows in peptQuantRowMap.items():
-    if featureClusterIdx % 10000 == 0:
+    if featureClusterIdx % 100000 == 0:
       print("  featureClusterIdx:", featureClusterIdx)
 
     bestPEP = collections.defaultdict(lambda : [(1.01, None)]*len(params['fileList'])) # reduceKey => array([linkPEP, precursorCandidate])
@@ -283,6 +286,13 @@ def getFilesAndGroups(runCondPairs):
         groupLabels.append(cond)
         groups.append([])
       groups[groupLabels.index(cond)].append(len(fileList) - 1)
+  
+  if len(fileList) < 2:
+    sys.exit("ERROR: There should be at least two runs.")
+  elif len(groups) < 2:
+    sys.exit("ERROR: At least two conditions (treatment groups) should be specified.")
+  elif min([len(g) for g in groups]) < 2:
+    sys.exit("ERROR: Each condition (treatment group) should have at least two runs.")
   
   return fileList, groupLabels, groups
 

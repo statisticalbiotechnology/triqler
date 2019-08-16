@@ -85,12 +85,19 @@ def fitLogitNormal(observedValues, params, plot):
   bins = bins[:-1]
   popt, _ = curve_fit(funcLogitNormal, bins, vals, p0 = (m, s, m - s, s))
   
+  resetXICHyperparameters = False
   if popt[0] < popt[2] - 5*popt[3] or popt[0] > popt[2] + 5*popt[3]:
-    print("  Warning: muDetect outside of expected region [", popt[2] - 5*popt[3] , ",", popt[2] + 5*popt[3], ":", popt[0], " setting to default value of muXIC - 1.0 =", popt[2] - 1.0)
-    popt[0] = popt[2] - 1.0
+    print("  Warning: muDetect outside of expected region [", popt[2] - 5*popt[3] , ",", popt[2] + 5*popt[3], "]:", popt[0], ".")
+    resetXICHyperparameters = True
+  
   if popt[1] < 0.1 or popt[1] > 2.0:
-    print("  Warning: sigmaDetect outside of expected region [0.1,2.0]:" , popt[1], " setting to default value of 0.3")
+    print("  Warning: sigmaDetect outside of expected region [0.1,2.0]:" , popt[1], ".")
+    resetXICHyperparameters = True
+  
+  if resetXICHyperparameters:
+    print("    Resetting mu/sigmaDetect hyperparameters to default values of muDetect = muXIC - 1.0 and sigmaDetect = 0.3")
     popt[1] = 0.3
+    popt[0] = popt[2] - 1.0
   
   #print("  params[\"muDetectInit\"], params[\"sigmaDetectInit\"] = %f, %f" % (popt[0], popt[1]))
   print("  params[\"muDetect\"], params[\"sigmaDetect\"] = %f, %f" % (popt[0], popt[1]))

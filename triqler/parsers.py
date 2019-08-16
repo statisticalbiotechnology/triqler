@@ -41,8 +41,15 @@ def parseFileList(inputFile):
   fileList = list()
   groups = list()
   groupNames = list()
+  sampleList = list()
+  fractionList = list()
   for fileIdx, row in enumerate(reader):
-    fileList.append(row[0])
+    fileList.append(os.path.splitext(os.path.basename(row[0]))[0])
+    if len(row) >= 3:
+      sampleList.append(row[2])
+      if len(row) >= 4:
+        fractionList.append(row[3])
+    
     if row[1] not in groupNames:
       groupNames.append(row[1])
       groups.append([])
@@ -50,7 +57,19 @@ def parseFileList(inputFile):
   
   for groupIdx, groupName in enumerate(groupNames):
     groupNames[groupIdx] = str(groupIdx + 1) + ":" + groupName
-  return fileList, groups, groupNames
+  
+  if len(sampleList) == 0:
+    sampleList = fileList
+  elif len(sampleList) != len(fileList):
+    sys.exit("Sample column was empty for some runs")
+  
+  if len(fractionList) == 0:
+    fractionList = [-1]*len(fileList)
+  elif len(fractionList) != len(fileList):
+    sys.exit("Fraction column was empty for some runs")
+  
+  fileInfoList = [[x, getGroupLabel(idx, groups, groupNames), sampleList[idx], fractionList[idx]] for idx, x in enumerate(fileList)]
+  return fileInfoList
 
 def getGroupLabel(idx, groups, groupLabels):
   groupIdx = [i for i, g in enumerate(groups) if idx in g][0]
@@ -122,9 +141,6 @@ def parseTriqlerInputFile(triqlerInputFile):
   intensityCol = 7 if hasLinkPEPs else 4
   seenPeptChargePairs = dict()
   for i, row in enumerate(reader):
-    if i % 1000000 == 0:
-      print("  Reading row", i)
-    
     intensity = float(row[intensityCol])
     if intensity > 0.0:
       if hasLinkPEPs:

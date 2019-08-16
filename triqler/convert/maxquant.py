@@ -5,7 +5,10 @@ MaxQuant.
 
 from __future__ import print_function
 
+import sys
 import collections
+
+import numpy as np
 
 from .. import parsers
 from ..triqler import __version__, __copyright__
@@ -14,6 +17,7 @@ from . import normalize_intensities as normalize
 
 def main():
   print('Triqler.convert.maxquant version %s\n%s' % (__version__, __copyright__))
+  print('Issued command:', "maxquant.py " + " ".join(map(str, sys.argv[1:])))
   args, params = parseArgs()
   
   convertMqToTriqler(args.file_list_file, args.in_file, args.out_file, params)
@@ -41,24 +45,23 @@ def parseArgs():
                      help='Skip retention-time based intensity normalization.',
                      action='store_true')
   
-  apars.add_argument('--skip_link_pep',
-                     help='Skips the linkPEP column from match-between-runs output.',
-                     action='store_true')
+  #apars.add_argument('--skip_link_pep',
+  #                   help='Skips the linkPEP column from match-between-runs output.',
+  #                   action='store_true')
   
   # ------------------------------------------------
   args = apars.parse_args()
   
   params = dict()
-  params['simpleOutputFormat'] = args.skip_link_pep
+  params['simpleOutputFormat'] = True
   params['skipNormalization'] = args.skip_normalization
   params['plotScatter'] = False
   
   return args, params
   
 def convertMqToTriqler(fileListFile, mqEvidenceFile, triqlerInputFile, params):
-  fileList, groups, groupLabels = parsers.parseFileList(fileListFile)  
-  
-  fileNameConditionPairs = [[x.split("/")[-1], parsers.getGroupLabel(idx, groups, groupLabels)] for idx, x in enumerate(fileList)]
+  fileInfoList = parsers.parseFileList(fileListFile)
+  fileList, _, sampleList, fractionList = zip(*fileInfoList)
   
   writer = parsers.getTsvWriter(triqlerInputFile)
   if params['simpleOutputFormat']:
@@ -79,52 +82,62 @@ def convertMqToTriqler(fileListFile, mqEvidenceFile, triqlerInputFile, params):
   postErrCol = headers.index('PEP')
   rtCol = headers.index('Retention time')
   
+  fractionCol = headers.index('Fraction') if 'Fraction' in headers else -1
+  experimentCol = headers.index('Experiment')
+  
   print("Parsing MaxQuant evidence.txt file")
   peptideToFeatureMap = collections.defaultdict(list)
-  for row in reader:
+  for lineIdx, row in enumerate(reader):
+    if lineIdx % 500000 == 0:
+      print("  Reading line", lineIdx)
+    
     proteins = row[proteinCol].split(";")
     
     linkPEP = 0.0
     key = (row[peptCol], row[chargeCol])
     
     fileIdx = fileList.index(row[fileCol])
-    run, condition = fileNameConditionPairs[fileIdx]
+    run, condition, sample, fraction = fileInfoList[fileIdx]
+    if fraction == -1 and fractionCol != -1:
+      sample, fraction = row[experimentCol], row[fractionCol]
     
     if key in peptideToFeatureMap:
       featureClusterIdx = peptideToFeatureMap[key][0][0].featureClusterId
     else:
       featureClusterIdx = len(peptideToFeatureMap)
     
-    if row[intensityCol] == "":
+    if row[intensityCol] == "" or float(row[scoreCol]) <= 0:
       continue
-    #print(row[scoreCol], row[intensityCol])
-    triqlerRow = parsers.TriqlerInputRow(run, condition, row[chargeCol], row[idCol], linkPEP, featureClusterIdx, float(row[scoreCol]), float(row[intensityCol]), row[peptCol], proteins)
-    peptideToFeatureMap[key].append((triqlerRow, float(row[rtCol])))
+    
+    triqlerRow = parsers.TriqlerInputRow(sample, condition, row[chargeCol], row[idCol], linkPEP, featureClusterIdx, np.log(float(row[scoreCol])), float(row[intensityCol]), row[peptCol], proteins)
+    peptideToFeatureMap[key].append((triqlerRow, float(row[rtCol]), fraction))
   
   if not params['skipNormalization']:
     print("Applying retention-time dependent intensity normalization")
-    minRunsObservedIn = len(fileNameConditionPairs) / 3 + 2
-    factorPairs = normalize.getIntensityFactorPairs(peptideToFeatureMap.values(), sortKey = lambda x : (x[0].run, -1*x[0].intensity, x[1]), minRunsObservedIn = minRunsObservedIn)
-  
-    if params['plotScatter']:
-      normalize.plotFactorScatter(factorPairs)
-    
-    rTimeFactorArrays = normalize.getFactorArrays(factorPairs)
-    
+    minRunsObservedIn = len(set(sampleList)) / 3 + 1
     rTimeArrays, factorArrays = dict(), dict()
-    for key in rTimeFactorArrays:
-      rTimeArrays[key], factorArrays[key] = zip(*rTimeFactorArrays[key])
+    for fraction in sorted(list(set(fractionList))):
+      factorPairs = normalize.getIntensityFactorPairs(peptideToFeatureMap.values(), sortKey = lambda x : (x[2], x[0].run, -1*x[0].intensity, x[1]), minRunsObservedIn = minRunsObservedIn, fraction = fraction)
+      print("Fraction:", fraction, "#runs:", len(factorPairs))
+      if params['plotScatter']:
+        normalize.plotFactorScatter(factorPairs)
+      
+      rTimeFactorArrays = normalize.getFactorArrays(factorPairs)
+      
+      rTimeArrays[fraction], factorArrays[fraction] = dict(), dict()
+      for key in rTimeFactorArrays:
+        rTimeArrays[fraction][key], factorArrays[fraction][key] = zip(*rTimeFactorArrays[key])
   else:
     print("Skipping retention-time dependent intensity normalization")
   
   for featureClusterIdx, featureCluster in enumerate(peptideToFeatureMap.values()):
-    if featureClusterIdx % 10000 == 0:
+    if featureClusterIdx % 50000 == 0:
       print("Processing feature group", featureClusterIdx + 1)
     newRows = selectBestScorePerRun(featureCluster)
     
-    for (row, rTime) in newRows:
+    for (row, rTime, fraction) in newRows:
       if not params['skipNormalization']:
-        newIntensity = normalize.getNormalizedIntensity(rTimeArrays[row.run], factorArrays[row.run], rTime, row.intensity)
+        newIntensity = normalize.getNormalizedIntensity(rTimeArrays[fraction][row.run], factorArrays[fraction][row.run], rTime, row.intensity)
         row = row._replace(intensity = newIntensity)
       
       if params['simpleOutputFormat']:

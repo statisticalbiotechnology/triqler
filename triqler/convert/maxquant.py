@@ -47,9 +47,9 @@ def parseArgs():
                      help='Skip retention-time based intensity normalization.',
                      action='store_true')
   
-  #apars.add_argument('--skip_link_pep',
-  #                   help='Skips the linkPEP column from match-between-runs output.',
-  #                   action='store_true')
+  apars.add_argument('--skip_mbr_rows',
+                     help='Skips the match-between-runs rows in the output.',
+                     action='store_true')
   
   # ------------------------------------------------
   args = apars.parse_args()
@@ -57,6 +57,7 @@ def parseArgs():
   params = dict()
   params['simpleOutputFormat'] = True
   params['skipNormalization'] = args.skip_normalization
+  params['skipMBR'] =  args.skip_mbr_rows
   params['plotScatter'] = False
   
   return args, params
@@ -137,10 +138,22 @@ def convertMqToTriqler(fileListFile, mqEvidenceFile, triqlerInputFile, params):
       print("Processing feature group", featureClusterIdx + 1)
     newRows = selectBestScorePerRun(featureCluster)
     
+    if not params['skipMBR']:
+      searchScores = [x[0].searchScore for x in newRows if not np.isnan(x[0].searchScore)]
+      if len(searchScores) == 0:
+        continue # this can happen if the only PSM has a searchScore <= 0
+      worstSearchScore = np.min(searchScores)
+    
     for (row, rTime, fraction) in newRows:
       if not params['skipNormalization']:
         newIntensity = normalize.getNormalizedIntensity(rTimeArrays[fraction][row.run], factorArrays[fraction][row.run], rTime, row.intensity)
         row = row._replace(intensity = newIntensity)
+      
+      if np.isnan(row.searchScore):
+        if not params['skipMBR']:
+          row = row._replace(searchScore = worstSearchScore)
+        else:
+          continue
       
       if params['simpleOutputFormat']:
         writer.writerow(row.toSimpleList())

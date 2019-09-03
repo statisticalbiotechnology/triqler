@@ -15,6 +15,7 @@ scores indicate more confident hits and the highest score is on top of the list.
 from __future__ import print_function
 
 import os
+import sys
 import numpy as np
 import collections
 

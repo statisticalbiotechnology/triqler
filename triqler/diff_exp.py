@@ -153,6 +153,7 @@ def printResults(proteinOutputRows, qvalMethod, evalFunctions, outputFile, param
   
   nextScores = [x[0] for x in proteinOutputRows] + [np.nan]
   numSignificant = 0
+  qval = 0.0
   for i, (combinedPEP, _, protein, quantRows, evalFeatures, numPeptides, proteinIdPEP, quants, _) in enumerate(proteinOutputRows):
     if 'pvalues_with_fc' in qvalMethod and np.abs(evalFeatures[-2]) < params['foldChangeEval']:
       continue

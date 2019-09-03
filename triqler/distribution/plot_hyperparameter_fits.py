@@ -1,4 +1,9 @@
+#!/usr/bin/python
+
+from __future__ import print_function
+
 import os
+import sys
 import warnings
 
 from ..triqler import __version__, __copyright__

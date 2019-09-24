@@ -23,7 +23,7 @@ from .. import parsers
 from ..triqler import __version__, __copyright__
 
 from . import normalize_intensities as normalize
-from . import percolator
+from . import helpers
 
 def main():
   print('Triqler.convert.quandenser version %s\n%s' % (__version__, __copyright__))
@@ -94,19 +94,9 @@ def convertQuandenserToTriqler(fileListFile, clusterQuantFile, psmsOutputFiles, 
   else:
     print("Skipping retention-time dependent intensity normalization")
   
-  specToPeptideMap = parsePsmsPoutFiles(psmsOutputFiles)
+  specToPeptideMap = helpers.parsePsmsPoutFiles(psmsOutputFiles)
   
   printTriqlerInputFile(fileInfoList, clusterQuantFile, peptQuantRowFile, specToPeptideMap, params)
-    
-def parsePsmsPoutFiles(psmsOutputFiles):
-  specToPeptideMap = collections.defaultdict(list)
-  for psmsOutputFile in psmsOutputFiles:
-    for psm in percolator.parsePsmsPout(psmsOutputFile):
-      specToPeptideMap[psm.scannr] = (psm.peptide, psm.PEP, psm.proteins, psm.svm_score, psm.charge)
-  return lambda spectrumIdx : specToPeptideMap.get(spectrumIdx, getDefaultPeptideHit(spectrumIdx))
-
-def getDefaultPeptideHit(spectrumIdx):
-  return ("NA", 1.0, ["NA"], np.nan, -1) # psm.peptide, psm.PEP, psm.proteins, psm.svm_score, psm.charge
   
 def parsePeptideLinkPEP(peptLinkPEP):
   spectrumIdx, linkPEP = peptLinkPEP.split(";")
@@ -132,7 +122,7 @@ def printTriqlerInputFile(fileInfoList, clusterQuantFile, quantRowFile, specToPe
       fileIdx = int(pc.fileName)
       for peptLinkPEP in pc.peptLinkPEPs.split(","):
         spectrumIdx, linkPEP = parsePeptideLinkPEP(peptLinkPEP)
-        peptide, identPEP, proteins, searchScore, charge = specToPeptideMap(spectrumIdx)
+        peptide, proteins, searchScore, charge = specToPeptideMap(spectrumIdx)
         if pc.intensity > 0.0 and linkPEP < 1.0 and (params["retainUnidentified"] or peptide != "NA"):
           # run condition charge spectrumId linkPEP featureClusterId search_score intensity peptide proteins
           run, condition, sample, fraction = fileInfoList[fileIdx]
@@ -140,7 +130,7 @@ def printTriqlerInputFile(fileInfoList, clusterQuantFile, quantRowFile, specToPe
           rows.append(row)
     
     newRows = list()
-    rows = sorted(rows, key = lambda x : (x.run, x.spectrumId, x.linkPEP, -1*x.searchScore))
+    rows = sorted(rows, key = lambda x : (x.run, x.spectrumId, x.linkPEP, -1*x.searchScore, -1*x.intensity))
     prevKey = (-1, -1)
     bestSearchScore = -1e9
     for row in rows:
@@ -157,9 +147,6 @@ def printTriqlerInputFile(fileInfoList, clusterQuantFile, quantRowFile, specToPe
         writer.writerow(row.toSimpleList())
       else:
         writer.writerow(row.toList())
-  
-def combinePEPs(linkPEP, identPEP):
-  return 1.0 - (1.0 - linkPEP)*(1.0 - identPEP)
 
 if __name__ == "__main__":
    main()

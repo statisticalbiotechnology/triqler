@@ -13,8 +13,7 @@ import numpy as np
 
 from .. import parsers
 from ..triqler import __version__, __copyright__
-
-from . import normalize_intensities as normalize
+from . import helpers
 
 def main():
   print('Triqler.convert.maxquant version %s\n%s' % (__version__, __copyright__))
@@ -64,14 +63,15 @@ def parseArgs():
   
 def convertMqToTriqler(fileListFile, mqEvidenceFile, triqlerInputFile, params):
   fileInfoList = parsers.parseFileList(fileListFile)
-  fileList, _, sampleList, fractionList = zip(*fileInfoList)
   
-  writer = parsers.getTsvWriter(triqlerInputFile)
-  if params['simpleOutputFormat']:
-    writer.writerow(parsers.TriqlerSimpleInputRowHeaders)
-  else:
-    writer.writerow(parsers.TriqlerInputRowHeaders)
-    
+  peptideToFeatureMap = parseMqEvidenceFile(mqEvidenceFile, fileInfoList, params)
+  
+  rTimeArrays, factorArrays = helpers.getNormalizationFactorArrays(peptideToFeatureMap, fileInfoList, params)
+  
+  helpers.writeTriqlerInputFile(triqlerInputFile, peptideToFeatureMap, rTimeArrays, factorArrays, params)
+
+def parseMqEvidenceFile(mqEvidenceFile, fileInfoList, params):
+  fileList, _, _, _ = zip(*fileInfoList)
   reader = parsers.getTsvReader(mqEvidenceFile)
   headers = next(reader) # save the header
   
@@ -99,6 +99,10 @@ def convertMqToTriqler(fileListFile, mqEvidenceFile, triqlerInputFile, params):
     linkPEP = 0.0
     key = (row[peptCol], row[chargeCol])
     
+    if not row[fileCol] in fileList:
+      print("Warning: Could not find %s in the specified file list, skipping row" % row[fileCol])
+      continue
+    
     fileIdx = fileList.index(row[fileCol])
     run, condition, sample, fraction = fileInfoList[fileIdx]
     if fraction == -1 and fractionCol != -1:
@@ -115,65 +119,7 @@ def convertMqToTriqler(fileListFile, mqEvidenceFile, triqlerInputFile, params):
     triqlerRow = parsers.TriqlerInputRow(sample, condition, row[chargeCol], lineIdx, linkPEP, featureClusterIdx, np.log(float(row[scoreCol])), float(row[intensityCol]), row[peptCol], proteins)
     peptideToFeatureMap[key].append((triqlerRow, float(row[rtCol]), fraction))
   
-  if not params['skipNormalization']:
-    print("Applying retention-time dependent intensity normalization")
-    minRunsObservedIn = len(set(sampleList)) / 3 + 1
-    rTimeArrays, factorArrays = dict(), dict()
-    for fraction in sorted(list(set(fractionList))):
-      factorPairs = normalize.getIntensityFactorPairs(peptideToFeatureMap.values(), sortKey = lambda x : (x[2], x[0].run, -1*x[0].intensity, x[1]), minRunsObservedIn = minRunsObservedIn, fraction = fraction)
-      print("Fraction:", fraction, "#runs:", len(factorPairs))
-      if params['plotScatter']:
-        normalize.plotFactorScatter(factorPairs)
-      
-      rTimeFactorArrays = normalize.getFactorArrays(factorPairs)
-      
-      rTimeArrays[fraction], factorArrays[fraction] = dict(), dict()
-      for key in rTimeFactorArrays:
-        rTimeArrays[fraction][key], factorArrays[fraction][key] = zip(*rTimeFactorArrays[key])
-  else:
-    print("Skipping retention-time dependent intensity normalization")
-  
-  for featureClusterIdx, featureCluster in enumerate(peptideToFeatureMap.values()):
-    if featureClusterIdx % 50000 == 0:
-      print("Processing feature group", featureClusterIdx + 1)
-    newRows = selectBestScorePerRun(featureCluster)
-    
-    if not params['skipMBR']:
-      searchScores = [x[0].searchScore for x in newRows if not np.isnan(x[0].searchScore)]
-      if len(searchScores) == 0:
-        continue # this can happen if the only PSM has a searchScore <= 0
-      worstSearchScore = np.min(searchScores)
-    
-    for (row, rTime, fraction) in newRows:
-      if not params['skipNormalization']:
-        newIntensity = normalize.getNormalizedIntensity(rTimeArrays[fraction][row.run], factorArrays[fraction][row.run], rTime, row.intensity)
-        row = row._replace(intensity = newIntensity)
-      
-      if np.isnan(row.searchScore):
-        if not params['skipMBR']:
-          row = row._replace(searchScore = worstSearchScore)
-        else:
-          continue
-      
-      if params['simpleOutputFormat']:
-        writer.writerow(row.toSimpleList())
-      else:
-        writer.writerow(row.toList())
-
-def selectBestScorePerRun(rows):
-  newRows = list()
-  rows = sorted(rows, key = lambda x : (x[0].run, x[0].spectrumId, x[0].linkPEP, -1*x[0].searchScore))
-  prevKey = (-1, -1)
-  bestSearchScore = -1e9
-  for row in rows:
-    if prevKey == (row[0].run, row[0].spectrumId):
-      if row[0].searchScore > bestSearchScore:
-        bestSearchScore = row[0].searchScore
-        newRows.append(row)
-    else:
-      newRows.append(row)
-      prevKey = (row[0].run, row[0].spectrumId)
-  return newRows
+  return peptideToFeatureMap
 
 if __name__ == "__main__":
    main()

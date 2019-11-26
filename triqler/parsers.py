@@ -213,14 +213,14 @@ def getPeptideQuantRowHeaders(runs):
 def parsePeptideQuantFile(peptideQuantFile):
   reader = getTsvReader(peptideQuantFile)
   header = next(reader)
-  numRuns = (header.index("peptide") - header.index("spectrum") - 1) / 3
+  numRuns = int((header.index("peptide") - header.index("spectrum") - 1) / 3)
   peptideQuantRows = list()
   for row in reader:
     if len(row) > 6+3*numRuns:
       proteins = row[5+3*numRuns:]
     else:
       proteins = row[5+3*numRuns].split(";")
-    peptideQuantRows.append(PeptideQuantRow(float(row[0]), int(row[1]), int(row[2]), int(row[3]), np.array(map(float, row[4:4+numRuns])), np.array(map(float, row[4+numRuns:4+2*numRuns])), np.array(map(float, row[4+2*numRuns:4+3*numRuns])), row[4+3*numRuns], proteins))
+    peptideQuantRows.append(PeptideQuantRow(float(row[0]), int(row[1]), int(row[2]), int(row[3]), np.array(list(map(float, row[4:4+numRuns]))), np.array(list(map(float, row[4+numRuns:4+2*numRuns]))), np.array(list(map(float, row[4+2*numRuns:4+3*numRuns]))), row[4+3*numRuns], proteins))
 
   runIdsWithGroup = header[4:4+numRuns]
   maxGroups = len(set([runId.split(":")[0] for runId in runIdsWithGroup]))
@@ -249,6 +249,12 @@ def getPeptideQuantFileHeaders(peptideQuantFile):
   header = next(reader)
   return header
 
+def printPeptideQuantRows(peptOutputFile, headers, peptideQuantRows):
+  writer = getTsvWriter(peptOutputFile)
+  writer.writerow(getPeptideQuantRowHeaders(headers))
+  for row in peptideQuantRows:
+    writer.writerow(row.toList())
+    
 def filterAndGroupPeptides(peptQuantRows, peptFilter = lambda x : True):
   validPqr = lambda x : len(x.protein) == 1 and x.protein[0] != "NA" and x.combinedPEP < 1.0
   peptQuantRows = filter(lambda x : validPqr(x) and peptFilter(x), peptQuantRows)

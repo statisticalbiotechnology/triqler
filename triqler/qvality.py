@@ -42,7 +42,7 @@ def getQvaluesFromScores(targetScores, decoyScores, includePEPs = False, include
   allScores = np.concatenate((targetScores, decoyScores))
   allScores.sort()
   
-  medians, negatives, sizes = binData2(allScores, decoyScores)
+  medians, negatives, sizes = binData(allScores, decoyScores)
   medians, negatives, sizes = np.array(medians), np.array(negatives), np.array(sizes)
   
   # sort in descending order, highest score first
@@ -65,48 +65,13 @@ def getQvaluesFromScores(targetScores, decoyScores, includePEPs = False, include
   if plotRegressionCurve:
     scoresForPlot = evalScores.copy()
     
-  probs = factor * np.exp(splineEval2(evalScores, medians, variables))
-  probs = monotonize2(probs)
-  
-  if plotRegressionCurve:
-    import matplotlib.pyplot as plt
-    plt.plot(medians, (1.0*negatives) / sizes, '*-')
-    plt.plot(scoresForPlot, probs)
-    plt.show()
-  return None, probs
-
-# this function returns PEPs in ascending order (lowest PEP first)
-def getQvaluesFromScoresOld(targetScores, decoyScores, includePEPs = False, includeDecoys = False, tdcInput = False, pi0 = 1.0, plotRegressionCurve = False):
-  combined = list(map(lambda x : (x, True), targetScores)) + list(map(lambda x : (x, False), decoyScores))
-  np.random.shuffle(combined) # shuffle all scores so that target and decoy hits with identical scores are in a random order later
-  combined = sorted(combined, reverse = True)
-  
-  medians, negatives, sizes = binData(combined)
-  medians, negatives, sizes = np.array(medians[::-1]), np.array(negatives[::-1]), np.array(sizes[::-1])
-  
-  # sort in descending order, highest score first
-  if includeDecoys:
-    evalScores = np.array([x[0] for x in combined])
-  else:
-    evalScores = np.array(sorted(targetScores, reverse = True))
-  
-  if VERB > 3:
-    print(medians, negatives, sizes)
-  
-  variables = roughnessPenaltyIRLS(medians, negatives, sizes)
-  
-  if pi0 < 1.0:
-    factor = pi0 * float(len(targetScores)) / len(decoyScores)
-  else:
-    factor = 1.0
-    
-  probs = factor * np.exp(list(map(lambda score : splineEval(score, medians, variables), evalScores)))
+  probs = factor * np.exp(splineEval(evalScores, medians, variables))
   probs = monotonize(probs)
   
   if plotRegressionCurve:
     import matplotlib.pyplot as plt
     plt.plot(medians, (1.0*negatives) / sizes, '*-')
-    plt.plot(evalScores, probs)
+    plt.plot(scoresForPlot, probs)
     plt.show()
   return None, probs
   
@@ -125,35 +90,11 @@ def getQvaluesFromPvalues(pvalues, includePEPs = False):
 
 def pvaluesToScores(pvalues):
   return np.array(map(lambda x : -1*np.log(x / (1 - x)), pvalues))
-
+  
 def monotonize(peps):
-  newPeps = [0] * (len(peps)+1)
-  if len(peps) > 0:
-    for i, pep in enumerate(peps):
-      newPeps[i+1] = min(1.0, max(newPeps[i], pep))
-  return newPeps[1:]
-  
-def monotonize2(peps):
   return np.minimum(1.0, np.maximum.accumulate(peps))
-  
-def binData(combined, numBins = 500):
-  binEdges = list(map(lambda x : int(np.floor(x)), np.linspace(0, len(combined), numBins+1)))
-  bins = [combined[startIdx:endIdx] for startIdx, endIdx in zip(binEdges[:-1], binEdges[1:]) if startIdx < endIdx]
-  prevMedian = None
-  results = list()
-  for b in bins:
-    m = np.median([x[0] for x in b])
-    numNegs = np.sum(1 for x in b if not x[1])
-    numTot = len(b)
-    if m != prevMedian:
-      results.append([m, numNegs, numTot])
-      prevMedian = m
-    else:
-      results[-1][1] += numNegs
-      results[-1][2] += numTot
-  return zip(*results)
 
-def binData2(allScores, decoyScores, numBins = 500):
+def binData(allScores, decoyScores, numBins = 500):
   binEdges = list(map(lambda x : int(np.floor(x)), np.linspace(0, len(allScores), numBins+1)))
   bins = list()
   startIdx = 0
@@ -300,36 +241,7 @@ def initQR(medians):
   R[range(1,n-2), range(n-3)] = dx[1:-1] / 6
   return Q, R
 
-def splineEval(score, medians, variables):
-  _, _, g, _, _, gamma, _, _ = variables
-  #score = np.exp(score)
-  n = len(medians)
-  right = bisect.bisect_left(medians, score)
-  
-  if right == n:
-    derl = (g[n - 1] - g[n - 2]) / (medians[n - 1] - medians[n - 2]) + (medians[n - 1] - medians[n - 2]) / 6 * gamma[n - 3]
-    gx = g[n - 1] + (score - medians[n - 1]) * derl
-    return gx
-  
-  if medians[right] == score:
-    return g[right]
-  
-  if right > 0:
-    left = right
-    left -= 1
-    dr = medians[right] - score
-    dl = score - medians[left]
-    gamr = gamma[right - 1] if right < (n - 1) else 0.0
-    gaml = gamma[right - 1 - 1] if right > 1 else 0.0
-    h = medians[right] - medians[left]
-    gx = (dl * g[right] + dr * g[right - 1]) / h - dl * dr / 6 * ((1.0 + dl / h) * gamr + (1.0 + dr / h) * gaml)
-    return gx
-  else: # if right == 0
-    derr = (g[1] - g[0]) / (medians[1] - medians[0]) - (medians[1] - medians[0]) / 6 * gamma[0]
-    gx = g[0] - (medians[0] - score) * derr
-    return gx
-
-def splineEval2(scores, medians, variables):
+def splineEval(scores, medians, variables):
   _, _, g, _, _, gamma, _, _ = variables
   #score = np.exp(score)
   n = len(medians)
@@ -471,7 +383,45 @@ def parseQvalues(qvalFile, includePEPs = False):
     return qvals, peps
   else:
     return qvals
-    
+
+def countBelowFDR(peps, qvalThreshold):
+  return np.count_nonzero(np.cumsum(peps) / np.arange(1, len(peps) + 1) < qvalThreshold)
+
+def getPEPFromScoreLambda(targetScores, decoyScores):
+  if len(decoyScores) == 0:
+    sys.exit("ERROR: No decoy hits found, check if the correct decoy prefix was specified with the --decoy_pattern flag")
+  
+  targetScores = np.array(targetScores)
+  decoyScores = np.array(decoyScores)
+  _, peps = getQvaluesFromScores(targetScores, decoyScores, includePEPs = True, includeDecoys = True, tdcInput = True)
+  
+  print("  Identified", countBelowFDR(peps, 0.01), "PSMs at 1% FDR")
+  
+  peps = peps[::-1] # PEPs in descending order, highest PEP first
+  
+  allScores = np.concatenate((targetScores, decoyScores))
+  allScores.sort()  # scores in ascending order, lowest score first
+  getPEPFromScore = lambda score : peps[min(np.searchsorted(allScores, score, side = 'left'), len(peps) - 1)] if not np.isnan(score) else 1.0
+  
+  return getPEPFromScore
+
+def fdrsToQvals(fdrs):
+  qvals = [0] * len(fdrs)
+  if len(fdrs) > 0:
+    qvals[len(fdrs)-1] = fdrs[-1]
+    for i in range(len(fdrs)-2, -1, -1):
+      qvals[i] = min(qvals[i+1], fdrs[i])
+  return qvals
+
+def getPEPAtFDRThreshold(peps, qvalThreshold):
+  qvals = np.divide(np.cumsum(peps), np.arange(1,len(peps)+1))
+  if qvals[-1] > qvalThreshold:
+    idx = np.argmax(qvals > qvalThreshold)
+  else:
+    idx = -1
+  pepThreshold = peps[idx]
+  return pepThreshold
+   
 def unitTestScoreInput():
   import scipy.stats
   import matplotlib.pyplot as plt

@@ -2,7 +2,6 @@
 
 from __future__ import print_function
 
-import csv
 import itertools
 
 import numpy as np
@@ -25,31 +24,21 @@ def doDiffExp(params, peptQuantRows, outputFile, proteinQuantificationMethod, se
   if len(params['foldChangePosteriorsOutput']) > 0:
     printFoldChangePosteriors(proteinOutputRows, params)
   
-  outputFile, outputFileExt = getOutputFileExtension(outputFile)
   numGroups = len(params['groups'])
-  if numGroups >= 2:
-    for groupId1, groupId2 in itertools.combinations(range(numGroups), 2):
-      params['groupIdsDiffExp'] = (groupId1, groupId2)
-      if numGroups == 2:
-        proteinOutputFile = outputFile
-      else:
-        proteinOutputFile = outputFile.replace(outputFileExt, ".%dvs%d%s" % (groupId1 + 1, groupId2 + 1, outputFileExt if len(outputFileExt) > 1 else ""))
-      print("Comparing", params['groupLabels'][groupId1], "to", params['groupLabels'][groupId2])
-      print("  output file:", proteinOutputFile)
-      proteinOutputRowsGroup = selectComparison(proteinOutputRows, (groupId1, groupId2))
-      if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
-        evalFunctions = [lambda protein, evalFeatures : evalTruePositiveTtest(params["trueConcentrationsDict"], protein, groupId1, groupId2, evalFeatures[-2], params)]
-      printResults(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params)
-  
-    if False: # The ANOVA-like test seems to work as expected for low number of groups (<5), but creates many false positive with high numbers of groups
+  for groupId1, groupId2 in itertools.combinations(range(numGroups), 2):
+    if numGroups == 2:
       proteinOutputFile = outputFile
-      print(proteinOutputFile)
-      proteinOutputRowsGroup = selectComparison(proteinOutputRows, 'ANOVA')
-      if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
-        evalFunctions = [lambda protein, evalFeatures : evalTruePositiveANOVA(params["trueConcentrationsDict"], protein)]
-  else:
-    print("Comparing", params['groupLabels'][0], "to", params['groupLabels'][1] + ", output file:", proteinOutputFile)
-    printResults(proteinOutputRowsGroup, qvalMethod = qvalMethod, evalFunctions = evalFunctions, outputFile = proteinOutputFile, params = params)
+    else:
+      proteinOutputFile = getOutputFile(outputFile, groupId1, groupId2)
+    
+    print("Comparing", params['groupLabels'][groupId1], "to", params['groupLabels'][groupId2])
+    print("  output file:", proteinOutputFile)
+    
+    proteinOutputRowsGroup = selectComparison(proteinOutputRows, (groupId1, groupId2))
+    if "trueConcentrationsDict" in params and len(params["trueConcentrationsDict"]) > 0:
+      evalFunctions = [lambda protein, evalFeatures : evalTruePositiveTtest(params["trueConcentrationsDict"], protein, groupId1, groupId2, evalFeatures[-2], params)]
+    
+    printProteinQuantRows(proteinOutputRowsGroup, qvalMethod, evalFunctions, proteinOutputFile, params)
 
 def getOutputFileExtension(outputFile):
   fileName = outputFile.split("/")[-1]
@@ -58,6 +47,11 @@ def getOutputFileExtension(outputFile):
   else:
     return outputFile + ".", "."
 
+def getOutputFile(outputFile, groupId1, groupId2):
+  outputFile, outputFileExt = getOutputFileExtension(outputFile)
+  return outputFile.replace(outputFileExt, ".%dvs%d%s" % (groupId1 + 1, 
+      groupId2 + 1, outputFileExt if len(outputFileExt) > 1 else ""))
+  
 def getTrueConcentrations(trueConcentrationsDict, protein):
   for key, value in trueConcentrationsDict.items():
     if key in protein:
@@ -127,54 +121,49 @@ def getFoldChange(quants, params):
 def getFc(quants, params, groupId1, groupId2):
   return np.log2(np.mean([quants[x] for x in params['groups'][groupId1]]) / np.mean([quants[x] for x in params['groups'][groupId2]]))
   
-def printResults(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params, qvalThreshold = 0.05):
+def printProteinQuantRows(proteinOutputRows, qvalMethod, evalFunctions, outputFile, params, qvalThreshold = 0.05):
   writer = parsers.getTsvWriter(outputFile)
   
-  plotCalibration = len(evalFunctions) > 0
-  if plotCalibration:
-    evalTruePositives = evalFunctions[0]
-  
+  evalHeaders = ["log2_fold_change", "diff_exp_prob_" + str(params['foldChangeEval'])]
   if 'pvalues' in qvalMethod:
-    evalHeaders = ["log2_fold_change", "diff_exp_pval_" + str(params['foldChangeEval'])]
+    evalHeaders[1] = "diff_exp_pval_" + str(params['foldChangeEval'])
+    targetPvalues = [x[4] for x in proteinOutputRows]
+    reportedQvalsPval, reportedPEPsPval = qvality.getQvaluesFromPvalues(targetPvalues, includePEPs = True)
+  
+  protOutputHeaders = ["posterior_error_prob", "protein", "num_peptides", "protein_id_posterior_error_prob"] + evalHeaders + parsers.getRunIds(params) + ["peptides"]
+  checkCalibration = len(evalFunctions) > 0
+  if checkCalibration:
+    evalTruePositives = evalFunctions[0]
+    writer.writerow(["observed_q_value", "reported_q_value"] + protOutputHeaders)
   else:
-    evalHeaders = ["log2_fold_change", "diff_exp_prob_" + str(params['foldChangeEval'])]
+    writer.writerow(["q_value"] + protOutputHeaders)
   
   outRows = list()
   observedQvals, reportedQvals, reportedPEPs = list(), list(), list()
-  sumPEP, fp, tp = 0.0, 1, 0
-  decoys, targets = 1, 0
+  qval, observedQval, sumPEP = 0.0, 0.0, 0.0
+  targets, fp, tp = 0, 1, 0
   numTies = 1
-  
-  if 'pvalues' in qvalMethod:
-    targetPvalues = list()
-    for i, (_, _, _, _, evalFeatures, _, _, _, _) in enumerate(proteinOutputRows):
-      targetPvalues.append(evalFeatures[-1])
-    reportedQvalsPval, reportedPEPsPval = qvality.getQvaluesFromPvalues(targetPvalues, includePEPs = True)
-  
   nextScores = [x[0] for x in proteinOutputRows] + [np.nan]
   numSignificant = 0
-  qval = 0.0
   for i, (combinedPEP, _, protein, quantRows, evalFeatures, numPeptides, proteinIdPEP, quants, _) in enumerate(proteinOutputRows):
     if 'pvalues_with_fc' in qvalMethod and np.abs(evalFeatures[-2]) < params['foldChangeEval']:
       continue
-    
-    if plotCalibration:
-      if not protein.startswith(params['decoyPattern']):
-        if evalTruePositives(protein, evalFeatures):
-          tp += 1
-        else:
-          fp += 1
-      observedQval = float(fp) / (tp+fp)
 
-    score = combinedPEP
     if not protein.startswith(params['decoyPattern']):
       sumPEP += combinedPEP
       targets += 1
       qval = sumPEP / targets
       if qval < qvalThreshold:
         numSignificant += 1
+      
+      if checkCalibration:
+        if evalTruePositives(protein, evalFeatures):
+          tp += 1
+        else:
+          fp += 1
+        observedQval = float(fp) / (tp+fp)
 
-    if score == nextScores[i+1]:
+    if combinedPEP == nextScores[i+1]:
       numTies += 1
     else:
       for _ in range(numTies):
@@ -183,7 +172,7 @@ def printResults(proteinOutputRows, qvalMethod, evalFunctions, outputFile, param
         else:
           reportedQvals.append(qval)
         
-        if plotCalibration:
+        if checkCalibration:
           observedQvals.append(observedQval)
       numTies = 1
     
@@ -192,27 +181,15 @@ def printResults(proteinOutputRows, qvalMethod, evalFunctions, outputFile, param
     
     outRows.append(["%.4g" % combinedPEP, protein, numPeptides, "%.4g" % proteinIdPEP] + ["%.4g" % x for x in evalFeatures] + ["%.4g" % x for x in quants] + [x.peptide for x in quantRows])
   
-  protOutputHeaders = ["posterior_error_prob", "protein", "num_peptides", "protein_id_posterior_error_prob"] + evalHeaders + parsers.getRunIds(params) + ["peptides"]
-  if plotCalibration:
-    observedQvals = fdrsToQvals(observedQvals)
-
-    writer.writerow(["observed_q_value", "reported_q_value"] + protOutputHeaders)
+  if checkCalibration:
+    observedQvals = qvality.fdrsToQvals(observedQvals)
     for outRow, observedQval, reportedQval in zip(outRows, observedQvals, reportedQvals):
       writer.writerow(["%.4g" % (observedQval), "%.4g" % (reportedQval)] + outRow)
   else:
-    writer.writerow(["q_value"] + protOutputHeaders)
     for outRow, reportedQval in zip(outRows, reportedQvals):
       writer.writerow(["%.4g" % (reportedQval)] + outRow)
   
   print("  Found", numSignificant, "target proteins as differentially abundant at", str(int(qvalThreshold * 100)) + "% FDR")
-
-def fdrsToQvals(fdrs):
-  qvals = [0] * len(fdrs)
-  if len(fdrs) > 0:
-    qvals[len(fdrs)-1] = fdrs[-1]
-    for i in range(len(fdrs)-2, -1, -1):
-      qvals[i] = min(qvals[i+1], fdrs[i])
-  return qvals
 
 def printProteinPosteriors(proteinOutputRows, params):
   print("Writing protein posteriors to", params['proteinPosteriorsOutput'])

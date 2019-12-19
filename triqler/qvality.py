@@ -89,7 +89,7 @@ def getQvaluesFromPvalues(pvalues, includePEPs = False):
   return getQvaluesFromScores(targetScores, decoyScores, includePEPs, includeDecoys = False, pi0 = pi0)
 
 def pvaluesToScores(pvalues):
-  return np.array(map(lambda x : -1*np.log(x / (1 - x)), pvalues))
+  return np.array(list(map(lambda x : -1*np.log(x / (1 - x)), pvalues)))
   
 def monotonize(peps):
   return np.minimum(1.0, np.maximum.accumulate(peps))

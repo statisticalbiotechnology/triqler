@@ -81,13 +81,13 @@ def plotPosterior(inputFile, protein, params):
     elif headerCols[0] == 'run':
       plotPosteriorFromTriqlerInput(inputFile, protein, params)
     elif headerCols[1] == 'group:run':
-      params['proteinQuantCandidates'] = np.array(map(float, headerCols[2:]))
+      params['proteinQuantCandidates'] = np.array(list(map(float, headerCols[2:])))
       plotProteinPosteriors(inputFile, protein, params)
     elif headerCols[1] == 'group':
-      params['proteinQuantCandidates'] = np.array(map(float, headerCols[2:]))
+      params['proteinQuantCandidates'] = np.array(list(map(float, headerCols[2:])))
       plotGroupPosteriors(inputFile, protein, params)
     elif headerCols[1] == 'comparison':
-      params['proteinDiffCandidates'] = np.array(map(float, headerCols[2:]))
+      params['proteinDiffCandidates'] = np.array(list(map(float, headerCols[2:])))
       plotFoldChangePosteriors(inputFile, protein, params)
     else:
       sys.exit("Could not identify input format.")

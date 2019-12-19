@@ -190,7 +190,7 @@ def parsePosteriorFile(peptideQuantFile, refProtein = ""):
   for row in reader:
     protein = row[0]
     if len(refProtein) == 0 or refProtein in protein:
-      yield protein, row[1], np.array(map(float, row[2:]))
+      yield protein, row[1], np.array(list(map(float, row[2:])))
 
 ##############################
 ## Peptide quant row files  ##

@@ -49,7 +49,7 @@ def parsePsmsPout(poutFile, qThresh = 1.0, proteinMap = None, parseId = True, fi
         proteins = row[5:]
       
       if proteinMap:
-        proteins = map(proteinMap, proteins)
+        proteins = list(map(proteinMap, proteins))
       
       if cruxOutput:
         yield PercolatorPoutPsms(row[fileIdxCol] + "_" + row[scanCol] + "_" + row[chargeCol], int(row[fileIdxCol]), int(row[scanCol]), int(row[chargeCol]), float(row[scoreCol]), float(row[qvalCol]), 1.0, row[terminalsCol][0] + "." + row[peptideCol] + "." + row[terminalsCol][1], proteins)

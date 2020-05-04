@@ -121,14 +121,14 @@ MappedPrecursor = namedtuple("MappedPrecursor", "scanNr precMz charge rTime inte
 
 def getMappedPrecursorOriginalFile(mappedPrecursorFile):
   reader = getTsvReader(mappedPrecursorFile)
-  fileNameLine = reader.next()
+  fileNameLine = next(reader)
   return os.path.splitext(fileNameLine[0].split("=")[-1])[0]
 
 # specId, fmz, fz, frt, fint
 def parseMappedPrecursorFile(mappedPrecursorFile):
   reader = getTsvReader(mappedPrecursorFile)
-  reader.next() # filename
-  reader.next() # headers
+  next(reader) # filename
+  next(reader) # headers
   for row in reader:
     if " scan=" in row[0]:
       row[0] = row[0].split(" scan=")[1].split()[0]

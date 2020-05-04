@@ -67,7 +67,7 @@ def runningMean(x, N):
   else:
     cumsum = np.cumsum(np.insert(x, 0, 0))
     rm = (cumsum[N:] - cumsum[:-N]) / N 
-    return np.concatenate(([rm[0]]*(N/2), rm, [rm[-1]]*(N/2)))
+    return np.concatenate(([rm[0]]*int(N/2), rm, [rm[-1]]*int(N/2)))
   
 def normalizeIntensitiesWithFactorArrays(clusterQuantExtraFile, rTimeFactorArrays, clusterQuantExtraNormalizedFile):
   rTimeArrays, factorArrays = dict(), dict()

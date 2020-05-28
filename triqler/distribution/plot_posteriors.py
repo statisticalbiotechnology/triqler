@@ -112,7 +112,7 @@ def plotPosteriorFromTriqlerInput(triqlerInputFile, protein, params):
   
   peptidePEPThreshold = getPeptidePEPThreshold(peptQuantRows) # needed for the naive method
   
-  peptQuantRows = filter(lambda x : protein in x.protein[0], peptQuantRows)
+  peptQuantRows = list(filter(lambda x : protein in x.protein[0], peptQuantRows))
   if len(peptQuantRows) == 0:
     sys.exit("Could not find any peptides for the protein")
   

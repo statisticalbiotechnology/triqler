@@ -88,6 +88,7 @@ def parseDinosaurMapFiles(mappedPrecursorFiles, fileInfoList, psmsOutputFiles):
   fileList, _, _, _ = zip(*fileInfoList)
   specToPeptideMap = helpers.parsePsmsPoutFiles(psmsOutputFiles, key = lambda psm : (psm.filename, psm.scannr))
   
+  fileKey = -1
   linkPEP = 0.0
   peptideToFeatureMap = collections.defaultdict(list)
   for mappedPrecursorFile in mappedPrecursorFiles:
@@ -100,7 +101,18 @@ def parseDinosaurMapFiles(mappedPrecursorFiles, fileInfoList, psmsOutputFiles):
     fileIdx = fileList.index(fileName)
     run, condition, sample, fraction = fileInfoList[fileIdx]
     for spMap in parsers.parseMappedPrecursorFile(mappedPrecursorFile):
-      peptide, proteins, svmScore, charge = specToPeptideMap((fileIdx, spMap.scanNr))
+      if fileKey == -1:
+        if specToPeptideMap((fileName, spMap.scanNr))[0] != helpers.getDefaultPeptideHit()[0]:
+          fileKey = 1
+        elif specToPeptideMap((fileIdx, spMap.scanNr))[0] != helpers.getDefaultPeptideHit()[0]:
+          fileKey = 2
+      
+      if fileKey == 2:
+        fileId = fileIdx # crux percolator
+      else:
+        fileId = fileName # standalone percolator
+      
+      peptide, proteins, svmScore, charge = specToPeptideMap((fileId, spMap.scanNr))
       if peptide != helpers.getDefaultPeptideHit()[0]:
         key = (peptide, charge)
         if key in peptideToFeatureMap:
@@ -109,7 +121,9 @@ def parseDinosaurMapFiles(mappedPrecursorFiles, fileInfoList, psmsOutputFiles):
           featureClusterIdx = len(peptideToFeatureMap)
         triqlerRow = parsers.TriqlerInputRow(sample, condition, spMap.charge, spMap.scanNr, linkPEP, featureClusterIdx, svmScore, spMap.intensity, peptide, proteins)
         peptideToFeatureMap[key].append((triqlerRow, spMap.rTime, fraction))
-  
+      
+  if len(peptideToFeatureMap) == 0:
+    sys.exit("Error: Could not map any PSM to the appropriate dinosaur feature.")
   return peptideToFeatureMap
 
 if __name__ == "__main__":

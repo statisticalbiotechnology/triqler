@@ -1,6 +1,18 @@
 Triqler: TRansparent Identification-Quantification-Linked Error Rates
 =====================================================================
 
+Triqler is a probabilistic graphical model that propagates error information 
+through all steps from MS1 feature to protein level, employing distributions 
+in favor of point estimates, most notably for missing value imputation. The 
+model outputs posterior probabilities for fold changes between treatment 
+groups, highlighting uncertainty rather than hiding it.
+
+The input and output formats are described at the bottom of this page. We also
+provide converters for output from software packages such as MaxQuant and 
+Quandenser. Instructions on how to run these, as well as other extended 
+functionality, can be found in our `wiki <https://github.com/statisticalbiotechnology/triqler/wiki>`_.
+
+
 Method description / Citation
 -----------------------------
 
@@ -21,6 +33,9 @@ Packages needed:
 Installation via ``pip``
 ************************
 
+.. image:: https://badge.fury.io/py/triqler.svg
+    :target: https://badge.fury.io/py/triqler
+    
 ::
 
   pip install triqler
@@ -92,6 +107,11 @@ run Triqler on this file by running the following command:
 
   python -m triqler --fold_change_eval 0.8 example/iPRG2016.tsv
 
+A detailed example of the different levels of Triqler output can be found in 
+`Supplementary Note 2 <https://www.nature.com/articles/s41467-020-17037-3#Sec13>`_
+of the Quandenser publication.
+
+
 Interface
 ---------
 
@@ -131,6 +151,11 @@ Some remarks:
   confidence in the PSM.
 - We recommend usage of well calibrated search engine scores, e.g. the
   SVM scores from Percolator.
+- Do **not** set --fold_change_eval to 0 or a very low value (<0.2). The fold
+  change posterior distribution always has a certain width, reflecting the
+  uncertainty of our estimation. Even if the fold change is 0, this distribution
+  will necessarily spill over into low fold change values, without there being
+  any ground for differential expression.
 - Multiple proteins can be specified at the end of the line, separated by tabs. 
   However, it should be noted that Triqler currently discards shared peptides.
 
@@ -143,12 +168,26 @@ by one protein per line in the following format:
 
 Some remarks:
 
-- The reported protein expressions are the expected value of the protein's
-  expression in the run. They are calculated relative to the protein's mean 
-  expression and are **not** log transformed.
+- The *q_value* and *posterior_error_prob* columns represent respectively the FDR
+  and PEP for the hypothesis that the protein was correctly identified and has
+  a fold change larger than the specified --fold_change_eval.
+- The *protein_id_PEP* and *diff_exp_prob_<FC>* columns are simply the separate
+  probabilities that make up the above hypothesis test, i.e. for correct 
+  identification and for fold change respectively.
 - The reported fold change is log2 transformed and is the expected value based 
   on the posterior distribution of the fold change.
 - If more than 2 treatment groups are present, separate files will be written
   out for each pairwise comparison with suffixes added before the file 
   extension, e.g. proteins.1vs3.tsv.
+- The reported protein expressions per run are the expected value of the 
+  protein's expression in that run. They represent relative values (**not** log 
+  transformed) to the protein's mean expression across all runs, which 
+  itself would correspond to the value 1.0. For example, a value of 1.5 means 
+  that the expression in this sample is 50% higher than the mean across all 
+  runs. A second example comparing values across samples: if sample1 has a 
+  value of 2.0 and sample2 a value of 1.5, it means that the expression in 
+  sample1 is 33% higher than in sample2 (2.0/1.5=1.33). We don't necessarily
+  recommend using these values for downstream analysis, as the idea is that the 
+  actual value of interest is the fold change between treatment groups rather 
+  than between samples.
 

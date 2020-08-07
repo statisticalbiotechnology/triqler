@@ -2,8 +2,8 @@ from __future__ import print_function
 
 """triqler.triqler: provides entry point main()."""
 
-__version__ = "0.3.1"
-__copyright__ = '''Copyright (c) 2018-2019 Matthew The. All rights reserved.
+__version__ = "0.4.0"
+__copyright__ = '''Copyright (c) 2018-2020 Matthew The. All rights reserved.
 Written by Matthew The (matthew.the@scilifelab.se) in the
 School of Engineering Sciences in Chemistry, Biotechnology and Health at the 
 Royal Institute of Technology in Stockholm.'''

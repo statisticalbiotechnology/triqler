@@ -1,3 +1,15 @@
+v0.04
+* Experimental support for MaxQuant MBR
+* Added Dinosaur converter
+* Fixed some converter scripts Python 3 compatibility (#12)
+* Fixed problem with standalone percolator input for dinosaur converter
+* Add support for disabling multithreading (by setting --num_threads 1)
+
+v0.03.1
+* Added issued command to log
+* Fixed MaxQuant converter with fractionated data (#10)
+* Fixed small issues with posterior distribution package
+
 v0.03
 * Added support for converting Quandenser and MaxQuant results to Triqler input format (#5)
 * Added support for printing posterior distributions to a file

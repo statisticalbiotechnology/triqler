@@ -74,19 +74,18 @@ def parseMqEvidenceFile(mqEvidenceFile, fileInfoList, params):
   fileList, _, _, _ = zip(*fileInfoList)
   reader = parsers.getTsvReader(mqEvidenceFile)
   headers = next(reader) # save the header
+  headers = list(map(str.lower, headers))
   
-  peptCol = headers.index('Modified sequence')
-  idCol = headers.index('MS/MS scan number')
-  fileCol = headers.index('Raw file')
-  chargeCol = headers.index('Charge')
-  intensityCol = headers.index('Intensity')
-  proteinCol = headers.index('Leading proteins')
-  scoreCol = headers.index('Score')
-  postErrCol = headers.index('PEP')
-  rtCol = headers.index('Retention time')
+  peptCol = headers.index('modified sequence')
+  fileCol = headers.index('raw file')
+  chargeCol = headers.index('charge')
+  intensityCol = headers.index('intensity')
+  proteinCol = headers.index('leading proteins')
+  scoreCol = headers.index('score')
+  rtCol = headers.index('retention time')
   
-  fractionCol = headers.index('Fraction') if 'Fraction' in headers else -1
-  experimentCol = headers.index('Experiment')
+  fractionCol = headers.index('fraction') if 'fraction' in headers else -1
+  experimentCol = headers.index('experiment') if 'experiment' in headers else -1
   
   print("Parsing MaxQuant evidence.txt file")
   peptideToFeatureMap = collections.defaultdict(list)

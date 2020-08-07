@@ -25,7 +25,7 @@ numLambda = 100
 maxLambda = 0.5
 
 # this function returns PEPs in ascending order (lowest PEP first)
-def getQvaluesFromScores(targetScores, decoyScores, includePEPs = False, includeDecoys = False, tdcInput = False, pi0 = 1.0, plotRegressionCurve = False):
+def getQvaluesFromScores(targetScores, decoyScores, includePEPs = False, includeDecoys = False, tdcInput = False, pi0 = 1.0, plotRegressionCurve = False, numBins = 500):
   if type(targetScores) is not np.ndarray:
     targetScores = np.array(targetScores)
   if type(decoyScores) is not np.ndarray:
@@ -42,7 +42,7 @@ def getQvaluesFromScores(targetScores, decoyScores, includePEPs = False, include
   allScores = np.concatenate((targetScores, decoyScores))
   allScores.sort()
   
-  medians, negatives, sizes = binData(allScores, decoyScores)
+  medians, negatives, sizes = binData(allScores, decoyScores, numBins)
   medians, negatives, sizes = np.array(medians), np.array(negatives), np.array(sizes)
   
   # sort in descending order, highest score first
@@ -72,6 +72,11 @@ def getQvaluesFromScores(targetScores, decoyScores, includePEPs = False, include
     import matplotlib.pyplot as plt
     plt.plot(medians, (1.0*negatives) / sizes, '*-')
     plt.plot(scoresForPlot, probs)
+    
+    plt.figure()
+    plt.plot(medians, (1.0*negatives) / sizes, '*-')
+    plt.plot(scoresForPlot, probs)
+    plt.yscale("log")
     plt.show()
   return None, probs
   
@@ -94,7 +99,7 @@ def pvaluesToScores(pvalues):
 def monotonize(peps):
   return np.minimum(1.0, np.maximum.accumulate(peps))
 
-def binData(allScores, decoyScores, numBins = 500):
+def binData(allScores, decoyScores, numBins):
   binEdges = list(map(lambda x : int(np.floor(x)), np.linspace(0, len(allScores), numBins+1)))
   bins = list()
   startIdx = 0

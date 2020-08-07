@@ -21,7 +21,6 @@ import numpy as np
 from . import parsers
 from . import qvality
 from . import hyperparameters
-from . import multiprocessing_pool as pool
 from . import pgm
 from . import diff_exp
 
@@ -423,15 +422,26 @@ def _pickedProteinStrategy(notPickedProteinOutputRows, decoyPattern):
   return pickedProteinOutputRows, proteinPEPs
 
 def getPosteriors(pickedProteinOutputRows, peps, params):
-  processingPool = pool.MyPool(processes = params['numThreads'], warningFilter = params['warningFilter'])
+  if params['numThreads'] > 1:
+    from . import multiprocessing_pool as pool
+    processingPool = pool.MyPool(processes = params['numThreads'], warningFilter = params['warningFilter'])
+  
   addDummyPosteriors = 0
+  posteriors = list()
   for (linkPEP, protein, quantRows, numPeptides), proteinIdPEP in zip(pickedProteinOutputRows, peps):  
     if proteinIdPEP < 1.0:
-      processingPool.applyAsync(pgm.getPosteriors, [quantRows, params])
+      if params['numThreads'] > 1:
+        processingPool.applyAsync(pgm.getPosteriors, [quantRows, params])
+      else:
+        posteriors.append(pgm.getPosteriors(quantRows, params))
+        if len(posteriors) % 50 == 0:
+          print(" ", len(posteriors),"/", sum(1 for p in peps if p < 1.0), "%.2f" % (float(len(posteriors)) / sum(1 for p in peps if p < 1.0) * 100) + "%")
     else:
       addDummyPosteriors += 1
-    #pgm.getPosteriors(quantRows, params) # for debug mode
-  posteriors = processingPool.checkPool(printProgressEvery = 50)
+  
+  if params['numThreads'] > 1:
+    posteriors = processingPool.checkPool(printProgressEvery = 50)
+  
   posteriors.extend([pgm.getDummyPosteriors(params)] * addDummyPosteriors)
   
   return posteriors

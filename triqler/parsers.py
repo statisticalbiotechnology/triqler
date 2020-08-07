@@ -32,9 +32,9 @@ def getTsvWriter(filename):
   else:
     return csv.writer(open(filename, 'wb'), delimiter = '\t')
 
-################################################
-## input: filename <tab> group (one per line) ##
-################################################
+################################################################################
+## input: filename <tab> group <tab> experiment <tab> fraction (one per line) ##
+################################################################################
 
 def parseFileList(inputFile):
   reader = getTsvReader(inputFile)
@@ -292,7 +292,7 @@ def getQuantMatrix(quantRows, condenseChargeStates = True, retainBestChargeState
         quantRows.append(pqrs[0]._replace(qval = geomAvg([x.combinedPEP for x in pqrs])))
   else:
     quantMatrix = [[y if y > 0.0 else np.nan for y in x.quant] for x in quantRows]
-
+  
   quantRows, quantMatrix = zip(*[(x, np.array(y)) for x, y in sorted(zip(quantRows, quantMatrix), key = lambda x : x[0].combinedPEP)])
   quantRows = list(quantRows)
   quantMatrix = list(quantMatrix)

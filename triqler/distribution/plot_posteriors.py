@@ -394,7 +394,11 @@ def plotPosteriorProteinRatios(pProteinQuantsList, params, maxCols = 15):
     inGroupIdx = params['groups'][groupId].index(j)
     if inGroupIdx < cols:
       plt.subplot(rows, 1, groupId + 1)
-      plt.plot(params['proteinQuantCandidates'], pProteinQuants, label = params['runIds'][j])
+      if inGroupIdx < 5:
+        label = params['runIds'][j]
+      else:
+        label = None
+      plt.plot(params['proteinQuantCandidates'], pProteinQuants, label = label)
       minProteinRatio = min([minProteinRatio, params['proteinQuantCandidates'][np.argmax(pProteinQuants > 1e-4)]])
       maxProteinRatio = max([maxProteinRatio, params['proteinQuantCandidates'][::-1][np.argmax(pProteinQuants[::-1] > 1e-4)]])
     

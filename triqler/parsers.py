@@ -117,22 +117,16 @@ def parseFeatureClustersFile(clusterQuantFile):
 ## Dinosaur scan to precursor mapping file  ##
 ##############################################
 
-MappedPrecursor = namedtuple("MappedPrecursor", "scanNr precMz charge rTime intensity")
+MappedPrecursor = namedtuple("MappedPrecursor", "fileName scanNr precMz charge rTime intensity")
 
-def getMappedPrecursorOriginalFile(mappedPrecursorFile):
-  reader = getTsvReader(mappedPrecursorFile)
-  fileNameLine = next(reader)
-  return os.path.splitext(fileNameLine[0].split("=")[-1])[0]
-
-# specId, fmz, fz, frt, fint
+# fileName, specId, fmz, fz, frt, fint
 def parseMappedPrecursorFile(mappedPrecursorFile):
   reader = getTsvReader(mappedPrecursorFile)
-  next(reader) # filename
   next(reader) # headers
   for row in reader:
-    if " scan=" in row[0]:
-      row[0] = row[0].split(" scan=")[1].split()[0]
-    yield MappedPrecursor(int(row[0]), float(row[1]), int(row[2]), float(row[3]), float(row[4]))
+    if " scan=" in row[1]:
+      row[1] = row[1].split(" scan=")[1].split()[0]
+    yield MappedPrecursor(row[0], int(row[1]), float(row[2]), int(row[3]), float(row[4]), float(row[5]))
     
 ##########################
 ## Triqler input files  ##

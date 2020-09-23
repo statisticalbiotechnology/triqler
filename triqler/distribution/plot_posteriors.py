@@ -59,6 +59,12 @@ There are two different options for <IN_FILE>:
   apars.add_argument('--decoy_pattern', default = "decoy_", metavar='D', 
                      help='Prefix for decoy proteins (only when Triqler input file is used as input)')
   
+  apars.add_argument('--plot_max_fold_change', type=float, default = 2.0, metavar='M', 
+                     help='Maximum (absolute) fold change for the violin plots')
+  
+  apars.add_argument('--plot_max_prob', type=float, default = 0.2, metavar='P', 
+                     help='Maximum probability for the violin plots')
+  
   # ------------------------------------------------
   args = apars.parse_args()
   
@@ -67,8 +73,8 @@ There are two different options for <IN_FILE>:
   params["foldChangeEval"] = args.fold_change_eval
   params["decoyPattern"] = args.decoy_pattern
   params["trueConcentrationsDict"] = dict()
-  params['pMax'] = 0.2 # max probability in violin plots
-  params['maxFoldChange'] = 2.0 # max fold change in violin plots
+  params['pMax'] = args.plot_max_prob # max probability in violin plots
+  params['maxFoldChange'] = args.plot_max_fold_change # max fold change in violin plots
     
   return args, params
   

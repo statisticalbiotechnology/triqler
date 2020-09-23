@@ -8,6 +8,31 @@ from .. import parsers
 from . import normalize_intensities as normalize
 from . import percolator
 
+AA_MASSES = {
+    'G': 57.02146,
+    'A': 71.03711,
+    'S': 87.03203,
+    'P': 97.05276,
+    'V': 99.06841,
+    'T': 101.04768,
+    'C': 103.00919+57.021464,
+    'L': 113.08406,
+    'I': 113.08406,
+    'N': 114.04293,
+    'D': 115.02694,
+    'Q': 128.05858,
+    'K': 128.09496,
+    'E': 129.04259,
+    'M': 131.04049,
+    'H': 137.05891,
+    'F': 147.06841,
+    'U': 150.95364,
+    'R': 156.10111,
+    'Y': 163.06333,
+    'W': 186.07931,
+    'O': 237.14773,
+}
+
 def parsePsmsPoutFiles(psmsOutputFiles, key = lambda psm : psm.scannr):
   specToPeptideMap = collections.defaultdict(list)
   for psmsOutputFile in psmsOutputFiles:
@@ -89,3 +114,54 @@ def selectBestScorePerRun(rows):
       prevKey = (row[0].run, row[0].spectrumId)
   return newRows
 
+def getMods(modPeptide):
+  peptide = ""
+  peptideIdx = 0
+  mods = [0]
+  inMod = False
+  for i in range(len(modPeptide)):
+    if modPeptide[i] == "[":
+      j = modPeptide[i:].find("]")
+      if modPeptide[i+1:i+j].startswith("UNIMOD:"):
+        unimodId = int(modPeptide[i+1:i+j].split(":")[1])
+        if unimodId == 4: # Carboxyamidomethylation peptide N-term or aa
+          if i == 0 or modPeptide[i-1] != "C":
+            massDiff = 57.021464
+          else:
+            massDiff = 0.0
+        elif unimodId == 5: # Carbamylation peptide N-term
+          massDiff = 43.005814
+        elif unimodId == 1: # Acetylation peptide N-term
+          massDiff = 42.010565
+        elif unimodId == 28 or unimodId == 385: # Pyro-glu from Q / Pyro-carbamidomethyl as a delta from Carbamidomethyl-Cys
+          massDiff = -17.026549
+        elif unimodId == 27: # Pyro-glu from E
+          massDiff = -18.010565
+        elif unimodId == 35: # Oxidation of M
+          massDiff = 15.994915
+        else:
+          sys.exit("Unknown UNIMOD id: " + str(unimodId))
+        mods[peptideIdx] += massDiff
+      else:
+        mods[peptideIdx] += float(modPeptide[i+1:i+j])
+      if mods[peptideIdx] == 16.0: # more accurate monoisotopic mass for oxidations
+        mods[peptideIdx] = 15.994915
+      inMod = True
+    elif modPeptide[i] == "]":
+      inMod = False
+    elif not inMod:
+      peptide += modPeptide[i]
+      peptideIdx += 1
+      mods.append(0)
+  return mods, peptide
+  
+def calcMass(peptide):
+  mods, peptide = getMods(peptide[2:-2])
+  return sum(mods) + sum([AA_MASSES[p] for p in peptide]) + 18.010565 + 1.00727646677
+
+def precMzFromPrecMass(pmass, z):
+  return (float(pmass) + 1.00727646677 * (int(z) - 1)) / int(z)
+
+def precMassFromPrecMz(pmz, z):
+  return pmz * z - 1.00727646677 * (z - 1)
+  

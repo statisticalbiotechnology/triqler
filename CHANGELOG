@@ -1,3 +1,7 @@
+v0.05
+* Updates to dinosaur converter
+* Added plotting flags for posterior plots
+
 v0.04
 * Experimental support for MaxQuant MBR
 * Added Dinosaur converter

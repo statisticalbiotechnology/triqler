@@ -7,10 +7,14 @@ in favor of point estimates, most notably for missing value imputation. The
 model outputs posterior probabilities for fold changes between treatment 
 groups, highlighting uncertainty rather than hiding it.
 
-The input and output formats are described at the bottom of this page. We also
-provide converters for output from software packages such as MaxQuant and 
-Quandenser. Instructions on how to run these, as well as other extended 
-functionality, can be found in our `wiki <https://github.com/statisticalbiotechnology/triqler/wiki>`_.
+For a detailed explanation of how to install and run Triqler (stand-alone 
+or in combination with MaxQuant, Quandenser or Dinosaur) as well as how to
+interpret the results, please read our `Triqler user manual <https://www.biorxiv.org/content/10.1101/2020.09.24.311605v1>`_.
+
+Brief instructions for installing and running Triqler as well as descriptions 
+of the input and output formats can be found below. Instructions for running 
+the converters to the Triqler input format are available in our 
+`wiki <https://github.com/statisticalbiotechnology/triqler/wiki>`_.
 
 
 Method description / Citation

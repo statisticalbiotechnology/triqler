@@ -7,6 +7,7 @@ import os
 import warnings
 import itertools
 import textwrap
+import collections
 
 import numpy as np
 import matplotlib
@@ -29,7 +30,7 @@ def main():
   params['warningFilter'] = "ignore"
   with warnings.catch_warnings():
     warnings.simplefilter(params['warningFilter'])
-    plotPosterior(args.in_file, args.protein_id, params)
+    plotPosterior(args.in_file, args.protein_id, args.protein_id_list, params)
 
 def parseArgs():
   import argparse
@@ -50,8 +51,10 @@ There are two different options for <IN_FILE>:
                      help='Triqler distribution output file or Triqler input file')
   
   apars.add_argument('--protein_id', metavar='P', 
-                     help='Protein ID, can be a partial match, e.g. "P39744" will match "sp|P39744|NOC2_YEAST"',
-                     required = True)
+                     help='Protein ID, can be a partial match, e.g. "P39744" will match "sp|P39744|NOC2_YEAST"')
+  
+  apars.add_argument('--protein_id_list', metavar='L', 
+                     help='Text file with a list of protein IDs (one per line). The IDs have to be written exactly as specified in the input file (no partial matches). Specifying this flag will result in a posterior heatmap plot.')
   
   apars.add_argument('--fold_change_eval', type=float, default=1.0, metavar='F',
                      help='log2 fold change evaluation threshold')
@@ -60,14 +63,23 @@ There are two different options for <IN_FILE>:
                      help='Prefix for decoy proteins (only when Triqler input file is used as input)')
   
   apars.add_argument('--plot_max_fold_change', type=float, default = 2.0, metavar='M', 
-                     help='Maximum (absolute) fold change for the violin plots')
+                     help='Maximum (absolute) fold change for the violin and posterior heatmap plots.')
   
   apars.add_argument('--plot_max_prob', type=float, default = 0.2, metavar='P', 
                      help='Maximum probability for the violin plots')
   
+  apars.add_argument('--hide_labels',
+                     help='Hide protein labels in the posterior heatmap plot.',
+                     action='store_true')
+  
   # ------------------------------------------------
   args = apars.parse_args()
   
+  if args.protein_id and args.protein_id_list:
+    sys.exit("ERROR: please specify either --protein_id or --protein_id_list, not both")
+  elif not args.protein_id and not args.protein_id_list:
+    sys.exit("ERROR: please specify either --protein_id or --protein_id_list")
+    
   params = dict()
   params['returnPosteriors'] = True
   params["foldChangeEval"] = args.fold_change_eval
@@ -75,32 +87,39 @@ There are two different options for <IN_FILE>:
   params["trueConcentrationsDict"] = dict()
   params['pMax'] = args.plot_max_prob # max probability in violin plots
   params['maxFoldChange'] = args.plot_max_fold_change # max fold change in violin plots
+  params['hideProteinLabels'] = args.hide_labels
     
   return args, params
   
-def plotPosterior(inputFile, protein, params):
+def plotPosterior(inputFile, protein, proteinList, params):
   with open(inputFile, 'r') as f:
     line = f.readline()
     headerCols = line.split('\t')
     if len(headerCols) < 2:
       sys.exit("Could not identify input format.")
     elif headerCols[0] == 'run':
-      plotPosteriorFromTriqlerInput(inputFile, protein, params)
+      plotPosteriorFromTriqlerInput(inputFile, protein, proteinList, params)
     elif headerCols[1] == 'group:run':
+      if proteinList:
+        sys.exit("Protein list posterior plotting not yet supported for protein posteriors")
       params['proteinQuantCandidates'] = np.array(list(map(float, headerCols[2:])))
-      plotProteinPosteriors(inputFile, protein, params)
+      plotProteinPosteriors(inputFile, protein, proteinList, params)
     elif headerCols[1] == 'group':
+      if proteinList:
+        sys.exit("Protein list posterior plotting not yet supported for group posteriors")
       params['proteinQuantCandidates'] = np.array(list(map(float, headerCols[2:])))
-      plotGroupPosteriors(inputFile, protein, params)
+      plotGroupPosteriors(inputFile, protein, proteinList, params)
     elif headerCols[1] == 'comparison':
+      if proteinList:
+        sys.exit("Protein list posterior plotting not yet supported for fold change posteriors")
       params['proteinDiffCandidates'] = np.array(list(map(float, headerCols[2:])))
-      plotFoldChangePosteriors(inputFile, protein, params)
+      plotFoldChangePosteriors(inputFile, protein, proteinList, params)
     else:
       sys.exit("Could not identify input format.")
   
   plt.show()
 
-def plotPosteriorFromTriqlerInput(triqlerInputFile, protein, params):
+def plotPosteriorFromTriqlerInput(triqlerInputFile, protein, proteinListFile, params):
   if not os.path.isfile(triqlerInputFile):
     sys.exit("Could not locate input file %s. Check if the path to the input file is correct." % triqlerInputFile)
   
@@ -118,15 +137,109 @@ def plotPosteriorFromTriqlerInput(triqlerInputFile, protein, params):
   
   peptidePEPThreshold = getPeptidePEPThreshold(peptQuantRows) # needed for the naive method
   
-  peptQuantRows = list(filter(lambda x : protein in x.protein[0], peptQuantRows))
-  if len(peptQuantRows) == 0:
-    sys.exit("Could not find any peptides for the protein")
+  if protein:
+    peptQuantRows = list(filter(lambda x : protein in x.protein[0], peptQuantRows))
+    if len(peptQuantRows) == 0:
+      sys.exit("Could not find any peptides for the protein")
+    
+    protQuantRows = parsers.filterAndGroupPeptides(peptQuantRows, lambda x : not x.protein[0].startswith(params['decoyPattern']))
+    
+    plottedProtein = plotPosteriors(protQuantRows, params)
+    
+    # plots second half of fold change violin plots with the naive quant method
+    #peptQuantRows = list(filter(lambda x : plottedProtein == x.protein[0], peptQuantRows))
+    #plotPosteriorCalibration(peptQuantRows, peptidePEPThreshold, params, protein)
+    
+    finishViolinPlots(params, protein, rotate = False)
+  else:
+    numGroups = len(params['groups'])
+    with open(proteinListFile, 'r') as f:
+      proteinList = f.read().splitlines()
+
+    peptQuantRows = list(filter(lambda x : x.protein[0] in proteinList, peptQuantRows))
+    if len(peptQuantRows) == 0:
+      sys.exit("Could not find any peptides for proteins matching to the input list")
+    
+    protQuantRows = parsers.filterAndGroupPeptides(peptQuantRows, lambda x : not x.protein[0].startswith(params['decoyPattern']))
+    
+    #protQuantRows = sorted(protQuantRows, key = lambda prot, quantRows: np.prod([x.combinedPEP for x in quantRows]), reverse = True)
+    bayesDists = collections.defaultdict(dict)
+    for prot, quantRows in protQuantRows:      
+      quantRows, quantMatrix = parsers.getQuantMatrix(quantRows)
+      
+      proteinQuantIdPEP = np.prod([x.combinedPEP for x in quantRows])
+      
+      bayesQuantRow, _, _, posteriorDists = pgm.getPosteriors(quantRows, params)
+      pProteinQuantsList, pProteinGroupQuants, pProteinGroupDiffs = posteriorDists
+      
+      for groupId1, groupId2 in itertools.combinations(range(numGroups), 2):
+        x = params['proteinDiffCandidates']
+        leftIdx, rightIdx = np.searchsorted(np.log2(np.power(10, x)), -1*params['maxFoldChange'], side = 'left'), np.searchsorted(np.log2(np.power(10, x)), params['maxFoldChange'], side = 'right')
+        x = x[leftIdx:rightIdx]
+        
+        key = proteinQuantIdPEP
+        bayesDists[(groupId1, groupId2)][(key, prot)] = pProteinGroupDiffs[(groupId1, groupId2)][leftIdx:rightIdx]
+    
+    trueLogRatio = None
+    for plotIdx, (groupId1, groupId2) in enumerate(itertools.combinations(range(numGroups), 2)):
+      plt.figure(figsize = (8,10))
+    
+      sortedKeys, bayesMatrix = sortMatrix(bayesDists[(groupId1, groupId2)])
+      
+      plotPosteriorsHeatMap(bayesMatrix, sortedKeys, trueLogRatio, params)
+      
+      if 'groupLabels' in params:
+        title = "f.c. posteriors %s vs %s" % (params['groupLabels'][groupId1], params['groupLabels'][groupId2])
+      else:
+        title = "f.c. posteriors %dvs%d" % (groupId1 + 1, groupId2 + 1)
+      plt.title(title, fontsize = 24)
+      plt.tight_layout()
+
+def sortMatrix(distDict):
+  sortedKeys = sorted(distDict.keys())
+  return sortedKeys, np.matrix([distDict[key] for key in sortedKeys])
+      
+def plotPosteriorsHeatMap(distributionMatrix, sortedKeys, trueLogRatio, params, cmap = matplotlib.cm.Blues):
+  cs = np.cumsum(distributionMatrix, axis = 1)
+  csRev = np.cumsum(distributionMatrix[:,::-1], axis = 1)
+  s = np.sum(distributionMatrix, axis = 1)
+  distributionMatrix[(cs >= 0.45 * s) & ((csRev >= 0.45 * s)[:,::-1])] = 10*params['pMax']
+  distributionMatrix[(cs < 0.45 * s) | ((csRev < 0.45 * s)[:,::-1])] = 50*params['pMax']
+  distributionMatrix[(cs < 0.025 * s) | ((csRev < 0.025 * s)[:,::-1])] = 0.0
+  #distributionMatrix[(distributionMatrix > 0) & (distributionMatrix < 0.95*np.max(distributionMatrix, axis = 1))] = 50*params['pMax']
   
-  protQuantRows = parsers.filterAndGroupPeptides(peptQuantRows, lambda x : not x.protein[0].startswith(params['decoyPattern']))
+  cmap.set_bad('black',0.6)
+  cmap.set_under('black',1.0)
   
-  plotPosteriors(protQuantRows, params)
-  plotPosteriorCalibration(peptQuantRows, peptidePEPThreshold, params, protein)
+  norm = matplotlib.colors.Normalize(clip = False)
   
+  plt.plot([0,0], [0, len(distributionMatrix)], 'w:', alpha = 0.6)
+  if trueLogRatio:
+    if np.abs(trueLogRatio) < params['maxFoldChange']:
+      plt.plot([trueLogRatio,trueLogRatio], [0, len(distributionMatrix)], 'w--', label = 'true ratio')
+    else:
+      numMarkers = 50
+      if trueLogRatio < 0:
+        sign, marker = -1, matplotlib.markers.CARETLEFT
+      else:
+        sign, marker = 1, matplotlib.markers.CARETRIGHT
+      plt.plot([sign*0.95*params['maxFoldChange']]*numMarkers, np.linspace(0, len(distributionMatrix), numMarkers), 'w', linestyle = 'None', marker = marker, label = 'true ratio')
+  
+  plt.fill_betweenx([0, len(distributionMatrix)], [-1*params['foldChangeEval'], -1*params['foldChangeEval']], [params['foldChangeEval'], params['foldChangeEval']], color = 'red', alpha = 0.3, label = 'fold change threshold')
+  
+  plt.imshow(distributionMatrix, aspect = 'auto', interpolation = 'none', norm = norm, vmin = 1e-3, vmax = 100*params['pMax'], extent = (-1*params['maxFoldChange'], params['maxFoldChange'], 0, len(distributionMatrix)), cmap = cmap)
+  
+  if params['hideProteinLabels']:
+    plt.gca().set_yticklabels([])
+    plt.gca().yaxis.set_ticks_position('none')
+  else:
+    plt.gca().set_yticklabels([x[1] for x in sortedKeys][::-1])
+    plt.gca().set_yticks(np.arange(len(sortedKeys))+0.5)
+  
+  for tick in plt.gca().xaxis.get_major_ticks():
+    tick.label.set_fontsize(18)
+  plt.xlabel("log2(fold change)", fontsize = 20)
+    
 def getPeptidePEPThreshold(peptQuantRows):
   sumPEP = 0.0
   peptidePEPThreshold = 1.0
@@ -172,11 +285,26 @@ def getNaivePosteriorParams(peptQuantRows, peptidePEPThreshold, params, minQuant
   return naiveRatioMu, naiveRatioSigma, seenPeptides
     
 def plotPosteriorCalibration(peptQuantRows, peptidePEPThreshold, params, protein):
-  minQuant = np.min(np.array([x.quant for x in peptQuantRows]))
-  
-  trueConcentrations = diff_exp.getTrueConcentrations(params["trueConcentrationsDict"], protein)
-  
   naiveRatioMu, naiveRatioSigma, seenPeptides = getNaivePosteriorParams(peptQuantRows, peptidePEPThreshold, params)
+  
+  numGroups = len(params["groups"])
+  
+  plotIdx = 1
+  plt.figure(3)
+  for groupId1, groupId2 in itertools.combinations(range(numGroups), 2):
+    plt.subplot(1, ((numGroups - 1)*numGroups)/2, plotIdx)
+    
+    x = np.arange(-1*params['maxFoldChange'],params['maxFoldChange'],0.01)
+    
+    if len(naiveRatioMu) > 0: # use top3 for protein summarization
+      naiveDist = -1.0*norm.pdf(x, naiveRatioMu[(groupId1, groupId2)], naiveRatioSigma[(groupId1, groupId2)]) / 100 * np.log2(10)  
+      plotViolin(naiveDist, x, label = 'Naive quant', color = 'blue')
+    #plt.fill_between(x, naiveDist*0.0, naiveDist, where = np.abs(x) > params['foldChangeEval'], facecolor = 'red', alpha = 0.5)
+    
+    plotIdx += 1
+
+def finishViolinPlots(params, protein, rotate = False):
+  trueConcentrations = diff_exp.getTrueConcentrations(params["trueConcentrationsDict"], protein)
   
   numGroups = len(params["groups"])
   if len(trueConcentrations) == 0:
@@ -192,59 +320,89 @@ def plotPosteriorCalibration(peptQuantRows, peptidePEPThreshold, params, protein
     
     plt.subplot(1, ((numGroups - 1)*numGroups)/2, plotIdx)
     
-    ymin, ymax = -1*params['pMax'], params['pMax']
+    #ymin, ymax = -1*params['pMax'], params['pMax']
+    ymin, ymax = 0, params['pMax']
     
     x = np.arange(-1*params['maxFoldChange'],params['maxFoldChange'],0.01)
     
-    if len(naiveRatioMu) > 0: # use top3 for protein summarization
-      naiveDist = -1.0*norm.pdf(x, naiveRatioMu[(groupId1, groupId2)], naiveRatioSigma[(groupId1, groupId2)]) / 100 * np.log2(10)  
-      plotViolin(naiveDist, x, label = 'Naive quant', color = 'blue')
-    #plt.fill_between(x, naiveDist*0.0, naiveDist, where = np.abs(x) > params['foldChangeEval'], facecolor = 'red', alpha = 0.5)
-    
     if len(params["trueConcentrationsDict"]) > 0:
       if np.abs(realRatio) < params['maxFoldChange']:
-        plt.plot([ymin, ymax], [realRatio, realRatio], 'k--', label = 'true ratio')
+        if rotate:
+          plt.plot([ymin, ymax], [realRatio, realRatio], 'k--', label = 'true ratio')
+        else:
+          plt.plot([realRatio, realRatio], [ymin, ymax], 'k--', label = 'true ratio')
       else:
         numMarkers = 10
         if realRatio < 0:
           sign, marker = -1, matplotlib.markers.CARETDOWN
         else:
           sign, marker = 1, matplotlib.markers.CARETUP
-        plt.plot(np.linspace(ymin, ymax, numMarkers), [sign*0.95*params['maxFoldChange']]*numMarkers, 'k--', marker = marker, label = 'true ratio')
-      
+        if rotate:
+          plt.plot(np.linspace(ymin, ymax, numMarkers), [sign*0.95*params['maxFoldChange']]*numMarkers, 'k--', marker = marker, label = 'true ratio')
+        else:
+          plt.plot([sign*0.95*params['maxFoldChange']]*numMarkers, np.linspace(ymin, ymax, numMarkers), 'k--', marker = marker, label = 'true ratio')
     
-    plt.plot([ymin, ymax], [-1*params['foldChangeEval'], -1*params['foldChangeEval']], color = 'red', alpha = 0.5, label = 'fold change cutoff')
-    plt.plot([ymin, ymax], [params['foldChangeEval'], params['foldChangeEval']], color = 'red', alpha = 0.5)
-    plt.fill_between([ymin, ymax], [-1*params['foldChangeEval'], -1*params['foldChangeEval']], [params['foldChangeEval'], params['foldChangeEval']], color = 'red', alpha = 0.15)
+    if rotate:
+      plt.plot([ymin, ymax], [-1*params['foldChangeEval'], -1*params['foldChangeEval']], color = 'red', alpha = 0.5, label = 'fold change threshold')
+      plt.plot([ymin, ymax], [params['foldChangeEval'], params['foldChangeEval']], color = 'red', alpha = 0.5)
+      plt.fill_between([ymin, ymax], [-1*params['foldChangeEval'], -1*params['foldChangeEval']], [params['foldChangeEval'], params['foldChangeEval']], color = 'red', alpha = 0.15)
+      plt.xlim([ymin, ymax])
+      plt.ylim([-1*params['maxFoldChange'], params['maxFoldChange']])
+    else:
+      plt.plot([-1*params['foldChangeEval'], -1*params['foldChangeEval']], [ymin, ymax], color = 'red', alpha = 0.5, label = 'fold change threshold')
+      plt.plot([params['foldChangeEval'], params['foldChangeEval']], [ymin, ymax], color = 'red', alpha = 0.5)
+      plt.fill_betweenx([ymin, ymax], [-1*params['foldChangeEval'], -1*params['foldChangeEval']], [params['foldChangeEval'], params['foldChangeEval']], color = 'red', alpha = 0.15)
+      plt.ylim([ymin, ymax])
+      plt.xlim([-1*params['maxFoldChange'], params['maxFoldChange']])
     
-    plt.xlim([ymin, ymax])
-    xmin, xmax = plt.gca().get_xlim()
-    plt.ylim([-1*params['maxFoldChange'], params['maxFoldChange']])
     
     if plotIdx == 1:
-      plt.ylabel("log2(fold change)", fontsize = 14)
-      plt.gca().yaxis.set_ticks_position('left')
-      for tick in plt.gca().yaxis.get_major_ticks():
-          tick.label.set_fontsize(14)
-      #plt.gca().spines['right'].set_visible(False)
+      if rotate:
+        plt.ylabel("log2(fold change)", fontsize = 14)
+        plt.gca().yaxis.set_ticks_position('left')
+        for tick in plt.gca().yaxis.get_major_ticks():
+            tick.label.set_fontsize(14)
+        #plt.gca().spines['right'].set_visible(False)
+      else:
+        plt.xlabel("log2(fold change)", fontsize = 14)
+        plt.gca().xaxis.set_ticks_position('bottom')
+        for tick in plt.gca().xaxis.get_major_ticks():
+            tick.label.set_fontsize(14)
+        #plt.gca().spines['right'].set_visible(False)
     else:
+      if rotate:
+        plt.gca().set_yticklabels([])
+        plt.gca().yaxis.set_ticks_position('none')
+      else:
+        plt.gca().set_xticklabels([])
+        plt.gca().xaxis.set_ticks_position('none')
+    
+    if rotate:
+      plt.gca().xaxis.set_ticks_position('none') 
+      plt.gca().set_xticklabels([])
+    else:
+      plt.gca().yaxis.set_ticks_position('none') 
       plt.gca().set_yticklabels([])
-      plt.gca().yaxis.set_ticks_position('none')
-    
-    plt.gca().xaxis.set_ticks_position('none') 
-    plt.gca().set_xticklabels([])
-    
+      
     plotIdx += 1
   
-  plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+  plt.tight_layout()
+  #plt.tight_layout(rect=[0, 0.03, 1, 0.95]) # matplotlib < 2.2
   #plt.subplots_adjust(wspace=0, hspace=0)
-  plt.legend(loc = 'lower right', fontsize = 14)
+  plt.legend(loc = 'upper right', fontsize = 14)
   
 def plotPosteriors(protQuantRows, params):
   numGroups = len(params['groups'])
   
   imputedDiffs, observedXICValues = list(), list()
-  for prot, quantRows in protQuantRows:
+  plottedProtein = ""
+  for idx, (prot, quantRows) in enumerate(protQuantRows):
+    if idx > 0:
+      print("WARNING: Found more than 1 protein matching the --protein_id flag. Only plotting results for the first hit.\n         Use the --protein_id_list flag to plot fold change posteriors for multiple proteins at once.")
+      break
+    else:
+      plottedProtein = prot
+    
     quantRows, quantMatrix = parsers.getQuantMatrix(quantRows)
     
     print("Protein ID:", prot)
@@ -289,6 +447,7 @@ def plotPosteriors(protQuantRows, params):
     #q = bayesQuantRow
     #data = [[np.log10(q[x]) for x in group if not np.isnan(q[x])] for group in params['groups']]
     #plt.boxplot(data)
+  return plottedProtein
 
 def printQuantRows(quantMatrix, quantRows):
   for i, row in enumerate(quantMatrix):
@@ -345,13 +504,17 @@ def plotPosteriorProteinGroupsDiffs(pProteinGroupDiffs, params):
     plt.ylim([-1*params['maxFoldChange'], params['maxFoldChange']])
     #plt.ylim([np.floor(log2diff[np.argmax(pDifference > 1e-4)]), np.ceil(log2diff[::-1][np.argmax(pDifference[::-1] > 1e-4)])])
 
-def plotViolin(pDifference, log2diff, label, color):
+def plotViolin(pDifference, log2diff, label, color, rotate = False):
   log2diff = log2diff[np.where(np.abs(pDifference) > 1e-4)]
   pDifference = pDifference[np.where(np.abs(pDifference) > 1e-4)]
-  plt.plot(pDifference, log2diff, color = color)
-  #plt.fill_between(log2diff, pDifference*0.0, pDifference, alpha = 0.5)
-  plt.fill_betweenx(log2diff, pDifference, alpha = 0.5, label = label, color = color)
   
+  if rotate:
+    plt.plot(pDifference, log2diff, color = color)
+    plt.fill_betweenx(log2diff, pDifference, alpha = 0.5, label = label, color = color)
+  else:
+    plt.plot(log2diff, pDifference, color = color)
+    plt.fill_between(log2diff, pDifference*0.0, pDifference, alpha = 0.5, label = label, color = color)
+    
 def plotPosteriorProteinGroupsRatios(pProteinGroupQuants, params):
   minProteinRatio, maxProteinRatio = max(params['proteinQuantCandidates']), min(params['proteinQuantCandidates'])
   
@@ -383,7 +546,8 @@ def plotPosteriorProteinGroupsRatios(pProteinGroupQuants, params):
       plt.legend()
     if groupId == numGroups - 1:
       plt.xlabel('log10(rel. protein quant)', fontsize = 14)
-  plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+  plt.tight_layout()
+  #plt.tight_layout(rect=[0, 0.03, 1, 0.95]) # matplotlib < 2.2
 
 def plotPosteriorProteinRatios(pProteinQuantsList, params, maxCols = 15):
   minProteinRatio, maxProteinRatio = max(params['proteinQuantCandidates']), min(params['proteinQuantCandidates'])
@@ -415,7 +579,8 @@ def plotPosteriorProteinRatios(pProteinQuantsList, params, maxCols = 15):
     plt.legend()
     if groupId == rows - 1:
       plt.xlabel('log10(rel. protein quant)', fontsize = 14)
-  plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+  plt.tight_layout()
+  #plt.tight_layout(rect=[0, 0.03, 1, 0.95]) # matplotlib < 2.2
 
 def plotProteinPosteriors(inputFile, protein, params):
   pProteinQuantsList = list()

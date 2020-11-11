@@ -50,6 +50,10 @@ def parseArgs():
                      help='Skips the match-between-runs rows in the output.',
                      action='store_true')
   
+  apars.add_argument('--use_gene_names',
+                     help='Use gene names instead of protein IDs as identifiers from the MaxQuant output.',
+                     action='store_true')
+  
   # ------------------------------------------------
   args = apars.parse_args()
   
@@ -57,6 +61,7 @@ def parseArgs():
   params['simpleOutputFormat'] = True
   params['skipNormalization'] = args.skip_normalization
   params['skipMBR'] =  args.skip_mbr_rows
+  params['useGeneNames'] =  args.use_gene_names
   params['plotScatter'] = False
   
   return args, params
@@ -80,6 +85,11 @@ def parseMqEvidenceFile(mqEvidenceFile, fileInfoList, params):
   fileCol = headers.index('raw file')
   chargeCol = headers.index('charge')
   intensityCol = headers.index('intensity')
+  if params['useGeneNames']:
+    geneCol = headers.index('gene names')
+    fastaCol = headers.index('fasta headers')
+    reverseCol = headers.index('reverse') 
+    contaminantCol = headers.index('contaminant') 
   proteinCol = headers.index('leading proteins')
   scoreCol = headers.index('score')
   rtCol = headers.index('retention time')
@@ -93,7 +103,20 @@ def parseMqEvidenceFile(mqEvidenceFile, fileInfoList, params):
     if lineIdx % 500000 == 0:
       print("  Reading line", lineIdx)
     
-    proteins = row[proteinCol].split(";")
+    if params['useGeneNames']:
+      if row[reverseCol] == "+":
+        proteins = getGeneNames(row[fastaCol], "REV__")
+      elif row[contaminantCol] == "+":
+        proteins = getGeneNames(row[fastaCol], "CON__")
+      else:
+        proteins = row[geneCol].split(";")
+      
+      if len(proteins) == 0:
+        proteins = row[proteinCol].split(";")
+      else:
+        proteins = list(set(proteins))
+    else:
+      proteins = row[proteinCol].split(";")
     
     linkPEP = 0.0
     key = (row[peptCol], row[chargeCol])
@@ -119,6 +142,14 @@ def parseMqEvidenceFile(mqEvidenceFile, fileInfoList, params):
     peptideToFeatureMap[key].append((triqlerRow, float(row[rtCol]), fraction))
   
   return peptideToFeatureMap
+
+def getGeneNames(fastaHeaders, prefix):
+  fastaHeaders = fastaHeaders.split(";")
+  proteins = []
+  for h in fastaHeaders:
+    if "GN=" in h:
+      proteins.append(prefix + h.split("GN=")[1].split()[0])
+  return proteins
 
 if __name__ == "__main__":
    main()

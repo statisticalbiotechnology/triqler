@@ -1,3 +1,7 @@
+v0.06
+* Added posterior heatmap plots for lists of protein IDs
+* Added --use-gene-names option for MaxQuant converter
+
 v0.05
 * Updates to dinosaur converter
 * Added plotting flags for posterior plots

@@ -336,6 +336,16 @@ def doPickedProteinQuantification(peptQuantRows, params, proteinModifier, getEva
   
   print("Fitting hyperparameters")
   hyperparameters.fitPriors(peptQuantRows, params)
+    
+  minGroupSize = min(len(x) for x in params['groups'])
+  
+  # 1. divide by sqrt(groupSize) for law of large numbers
+  # 2. multiply by sqrt(2) for the Group1 - Group2 subtraction (addition of two normal distributions)
+  # 3. multiply by 2.5 standard deviations which includes 99% of the probability distribution
+  recommendedFcLowerBound = np.log2(10**params["sigmaProtein"]) / np.sqrt(minGroupSize) * np.sqrt(2) * 2.5
+  print("Minimum advisable --fold_change_eval: %.2f" % (recommendedFcLowerBound))
+  if params['foldChangeEval'] < recommendedFcLowerBound:
+    print("  WARNING: --fold_change_eval is set below recommended lower bound, increased risk of false positives.")
   
   print("Calculating protein posteriors")
   posteriors = getPosteriors(pickedProteinOutputRows, proteinPEPs, params)

@@ -1,3 +1,6 @@
+v0.06.1
+* Added lower bound estimate based on sigmaProtein and numSamples
+
 v0.06
 * Added posterior heatmap plots for lists of protein IDs
 * Added --use-gene-names option for MaxQuant converter

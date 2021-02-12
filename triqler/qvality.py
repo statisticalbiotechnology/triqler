@@ -11,6 +11,7 @@ import sys
 
 import numpy as np
 import bisect
+from threadpoolctl import threadpool_limits
 
 tao = 2.0 / (1 + np.sqrt(5.0)) # inverse of golden section
 scaleAlpha = 1
@@ -55,7 +56,8 @@ def getQvaluesFromScores(targetScores, decoyScores, includePEPs = False, include
   if VERB > 3:
     print(medians, negatives, sizes)
   
-  variables = roughnessPenaltyIRLS(medians, negatives, sizes)
+  with threadpool_limits(limits=1):
+    variables = roughnessPenaltyIRLS(medians, negatives, sizes)
   
   if pi0 < 1.0:
     factor = pi0 * float(len(targetScores)) / len(decoyScores)

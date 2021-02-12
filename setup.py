@@ -95,7 +95,8 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
         'numpy>=1.12',
-        'scipy>=0.17'],
+        'scipy>=0.17',
+        'threadpoolctl>=1.0'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). Users will be able to install these using the "extras"

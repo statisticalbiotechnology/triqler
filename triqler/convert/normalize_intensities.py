@@ -31,7 +31,7 @@ def getIntensityFactorPairs(featureGroups, sortKey, minRunsObservedIn, fraction 
     for row in sortedFeatures:
       rowFraction, fileName, intensity, rTime = sortKey(row)
       intensity *= -1.0
-      if fraction == rowFraction and not np.isnan(intensity) and fileName not in localFactorPairs:
+      if fraction == rowFraction and not np.isnan(intensity) and intensity > 0 and fileName not in localFactorPairs:
         localFactorPairs[fileName] = (np.log2(intensity), rTime)
     
     if len(localFactorPairs) >= minRunsObservedIn:

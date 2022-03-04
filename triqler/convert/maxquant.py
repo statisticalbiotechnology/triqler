@@ -84,7 +84,16 @@ def parseMqEvidenceFile(mqEvidenceFile, fileInfoList, params):
   peptCol = headers.index('modified sequence')
   fileCol = headers.index('raw file')
   chargeCol = headers.index('charge')
-  intensityCol = headers.index('intensity')
+  if 'intensity l' in headers: # SILAC
+    intensityChannels = list()
+    intensityChannels.append(("L_", headers.index('intensity l')))
+    if 'intensity m' in headers:
+      intensityChannels.append(("M_", headers.index('intensity m')))
+    if 'intensity h' in headers:
+      intensityChannels.append(("H_", headers.index('intensity h')))
+  else:
+    intensityChannels = [("", headers.index('intensity'))]
+  
   if params['useGeneNames']:
     geneCol = headers.index('gene names')
     fastaCol = headers.index('fasta headers')
@@ -120,29 +129,33 @@ def parseMqEvidenceFile(mqEvidenceFile, fileInfoList, params):
     
     linkPEP = 0.0
     key = (row[peptCol], row[chargeCol])
-    
-    if not row[fileCol] in fileList:
-      print("Warning: Could not find %s in the specified file list, skipping row" % row[fileCol])
-      continue
-    
-    fileIdx = fileList.index(row[fileCol])
-    run, condition, sample, fraction = fileInfoList[fileIdx]
-    if fraction == -1 and fractionCol != -1:
-      sample, fraction = row[experimentCol], row[fractionCol]
-    
     if key in peptideToFeatureMap:
       featureClusterIdx = peptideToFeatureMap[key][0][0].featureClusterId
     else:
       featureClusterIdx = len(peptideToFeatureMap)
     
-    if row[intensityCol] == "" or float(row[scoreCol]) <= 0:
+    if sum(1 for x in intensityChannels if not (x[0] + row[fileCol]) in fileList) > 0:
+      print("Warning: Could not find %s in the specified file list, skipping row" % ([x[0] + row[fileCol] for x in intensityChannels if not (x[0] + row[fileCol]) in fileList]))
       continue
     
-    triqlerRow = parsers.TriqlerInputRow(sample, condition, row[chargeCol], lineIdx, linkPEP, featureClusterIdx, np.log(float(row[scoreCol])), float(row[intensityCol]), row[peptCol], proteins)
-    peptideToFeatureMap[key].append((triqlerRow, float(row[rtCol]), fraction))
-  
+    if sum(1 for x in intensityChannels if row[x[1]] == "") > 0 or float(row[scoreCol]) <= 0:
+      continue
+    
+    for prefix, intensityCol in intensityChannels:
+      run, condition, sample, fraction = getFileInfo(prefix + row[fileCol], fileList, fileInfoList, row[experimentCol], row[fractionCol])
+      
+      triqlerRow = parsers.TriqlerInputRow(sample, condition, row[chargeCol], lineIdx, linkPEP, featureClusterIdx, np.log(float(row[scoreCol])), float(row[intensityCol]), row[peptCol], proteins)
+      peptideToFeatureMap[key].append((triqlerRow, float(row[rtCol]), fraction))
+    
   return peptideToFeatureMap
 
+def getFileInfo(fileName, fileList, fileInfoList, sampleInEvidence, fractionInEvidence):
+  fileIdx = fileList.index(fileName)
+  run, condition, sample, fraction = fileInfoList[fileIdx]
+  if fraction == -1 and fractionCol != -1:
+    sample, fraction = sampleInEvidence, fractionInEvidence
+  return run, condition, sample, fraction
+    
 def getGeneNames(fastaHeaders, prefix):
   fastaHeaders = fastaHeaders.split(";")
   proteins = []

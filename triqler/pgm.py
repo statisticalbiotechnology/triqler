@@ -60,7 +60,7 @@ def getPosteriorProteinRatios(quantMatrix, quantRows, params, maxIterations = 50
 def getPosteriorProteinRatio(quantMatrix, quantRows, geoAvgQuantRow, params):
   numSamples = len(quantMatrix[0])
   
-  logGeoAvgs = np.log10([parsers.geomAvg(row) for row in quantMatrix])
+  logGeoAvgs = np.log10(parsers.geomAvg(quantMatrix, axis=1))
   featDiffs = np.log10(quantMatrix) - logGeoAvgs[:,np.newaxis]
   pMissingGeomAvg = pMissing(logGeoAvgs, params["muDetect"], params["sigmaDetect"]) # Pr(f_grn = NaN | t_grn = 1)
   
@@ -166,7 +166,7 @@ def getProbBelowFoldChangeDict(pProteinGroupDiffs, params):
   return probsBelowFoldChange
 
 def getPosteriorProteinGroupDiff(pDifference, params):  
-  return sum([y for x, y in zip(params['proteinDiffCandidates'], pDifference) if abs(np.log2(10**x)) < params['foldChangeEval']])
+  return pDifference[np.abs(np.log2(10**params['proteinDiffCandidates'])) < params['foldChangeEval']].sum()
 
 # this is a "pseudo"-ANOVA test which calculates the probability distribution 
 # for differences of means between multiple groups. With <=4 groups it seemed

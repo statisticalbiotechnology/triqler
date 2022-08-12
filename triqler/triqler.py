@@ -81,6 +81,8 @@ def parseArgs():
   
   apars.add_argument('--write_fold_change_posteriors', default = '', metavar='F_OUT',
                      help='Write raw data of fold change posteriors to the specified file in TSV format.')
+
+  apars.add_argument('--csv-field-size-limit', type=int, help="Set a new maximum CSV field size")
   
   # ------------------------------------------------
   args = apars.parse_args()
@@ -100,6 +102,9 @@ def parseArgs():
   
   if params['minSamples'] < 2:
     sys.exit("ERROR: --min_samples should be >= 2")
+
+  if args.csv_field_size_limit is not None:
+    csv.set_field_size_limit(args.csv_field_size_limit)
   
   return args, params
   

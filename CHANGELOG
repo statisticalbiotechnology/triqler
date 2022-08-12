@@ -1,3 +1,7 @@
+v0.06.3
+* List comprehensions replaced with numpy methods for some quick gains (#16)
+* Up the CSV field size limit (#16)
+
 v0.06.2
 * Added limit to number of cores for qvality (#13)
 

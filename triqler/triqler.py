@@ -2,7 +2,7 @@ from __future__ import print_function
 
 """triqler.triqler: provides entry point main()."""
 
-__version__ = "0.6.2"
+__version__ = "0.6.3"
 __copyright__ = '''Copyright (c) 2018-2020 Matthew The. All rights reserved.
 Written by Matthew The (matthew.the@scilifelab.se) in the
 School of Engineering Sciences in Chemistry, Biotechnology and Health at the 

@@ -1,13 +1,6 @@
 from __future__ import print_function
 
 """triqler.triqler: provides entry point main()."""
-
-__version__ = "0.6.3"
-__copyright__ = '''Copyright (c) 2018-2020 Matthew The. All rights reserved.
-Written by Matthew The (matthew.the@scilifelab.se) in the
-School of Engineering Sciences in Chemistry, Biotechnology and Health at the 
-Royal Institute of Technology in Stockholm.'''
-
 import sys
 import os
 import collections
@@ -23,6 +16,14 @@ from . import qvality
 from . import hyperparameters
 from . import pgm
 from . import diff_exp
+from . import version
+
+__version__ = version.get_version_from_pyproject()
+__copyright__ = '''Copyright (c) 2018-2020 Matthew The. All rights reserved.
+Written by Matthew The (matthew.the@scilifelab.se) in the
+School of Engineering Sciences in Chemistry, Biotechnology and Health at the 
+Royal Institute of Technology in Stockholm.'''
+
 
 def main():
   print('Triqler version %s\n%s' % (__version__, __copyright__))

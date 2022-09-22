@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "triqler"
+version = "0.6.3"
+description = "Triqler: TRansparent Identification-Quantification-Linked Error Rates"
+authors = ["Matthew The <matthew.the@tum.de>"]
+license= "Apache-2.0"
+readme = "README.rst"
+homepage = "https://github.com/statisticalbiotechnology/triqler"
+repository = "https://github.com/statisticalbiotechnology/triqler"
+keywords = ["mass spectrometry", "missing values", "proteomics", "quantification"]
+include = [
+  "LICENSE",
+]
+#build = "build.py" # this creates platform and python version specific packages when running poetry build. Not necessary here since we do not have compiled code, e.g. cython
+
+[tool.poetry.dependencies]
+python = ">=3.8,<3.12"
+numpy = "^1.23.3"
+scipy = "^1.9.1"
+threadpoolctl = "^3.1.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.4"
+pytest-cov = "^2.12.1"
+
+[build-system]
+requires = ["poetry>=1.1"]
+build-backend = "poetry.masonry.api"

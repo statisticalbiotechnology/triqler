@@ -1,3 +1,7 @@
+v0.06.4
+* Fixed csv field_size_limit function call (#17)
+* Added poetry environment
+
 v0.06.3
 * List comprehensions replaced with numpy methods for some quick gains (#16)
 * Up the CSV field size limit (#16)

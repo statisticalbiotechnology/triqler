@@ -105,7 +105,7 @@ def parseArgs():
     sys.exit("ERROR: --min_samples should be >= 2")
 
   if args.csv_field_size_limit is not None:
-    csv.set_field_size_limit(args.csv_field_size_limit)
+    csv.field_size_limit(args.csv_field_size_limit)
   
   return args, params
   

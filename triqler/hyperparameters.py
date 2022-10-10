@@ -18,10 +18,13 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   qc = params['proteinQuantCandidates']
   params['proteinDiffCandidates'] = np.linspace(2*qc[0], 2*qc[-1], len(qc)*2-1)
   
+    
   protQuantRows = parsers.filterAndGroupPeptides(peptQuantRows, lambda x : not x.protein[0].startswith(params['decoyPattern']))
   
   imputedVals, imputedDiffs, observedXICValues, protQuants, protDiffs, protStdevsInGroup, protGroupDiffs = list(), list(), list(), list(), list(), list(), list()
   quantRowsCollection = list()
+  if params["missingValuePrior"] == "DIA":
+      peptide_group_means = [] # ADDED FOR DIA PRIOR
   for prot, quantRows in protQuantRows:
     quantRows, quantMatrix = parsers.getQuantMatrix(quantRows)
     
@@ -44,8 +47,18 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     #  for mean in means:  
     #    #protGroupDiffs.append(mean - np.mean(means))
     #    protGroupDiffs.append(mean)
-    
+
+
     quantMatrixFiltered = np.log10(np.array([x for x, y in zip(quantMatrix, quantRows) if y.combinedPEP < 1.0]))  
+
+    # Fit prior based on means of missing value
+    if params["missingValuePrior"] == "DIA":
+        for peptide in quantMatrixFiltered:
+            for group in params["groups"]:
+                group_means = peptide[group][~np.isnan(peptide[group])].mean()
+                if group_means != np.nan:
+                    peptide_group_means.append(group_means)
+
     observedXICValues.extend(quantMatrixFiltered[~np.isnan(quantMatrixFiltered)])
     
     # counts number of NaNs per run, if there is only 1 non NaN in the column, we cannot use it for estimating the imputedDiffs distribution
@@ -54,8 +67,16 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     imputedDiffs.extend((xImps - quantMatrixFiltered)[(~np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
     #imputedVals.extend(xImps[(np.isnan(quantMatrixFiltered)) & (np.array(numNonNaNs) > 1)])
   
-  fitLogitNormal(observedXICValues, params, plot)
-  
+
+  # Add parameter to params for selecting fitLogitNormal
+  if params["missingValuePrior"] == "DIA":
+      peptide_group_means = np.array(peptide_group_means)
+      peptide_group_means = peptide_group_means[~np.isnan(peptide_group_means)]
+      fitLogitNormal(peptide_group_means, params, plot) # DIA fitLogitNormal - missing value prior
+  else:
+      fitLogitNormal(observedXICValues, params, plot) # old fitLogitNormal - missing value prior
+
+
   fitDist(protQuants, funcHypsec, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)
     
   fitDist(imputedDiffs, funcHypsec, "log10(imputed xic / observed xic)", ["muFeatureDiff", "sigmaFeatureDiff"], params, plot)
@@ -80,9 +101,12 @@ def fitLogitNormal(observedValues, params, plot):
   m = np.mean(observedValues)
   s = np.std(observedValues)
   minBin, maxBin = m - 4*s, m + 4*s
+
   #minBin, maxBin = -2, 6
   vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), normed = True)
   bins = bins[:-1]
+  
+  #print(vals) # EDIT
   popt, _ = curve_fit(funcLogitNormal, bins, vals, p0 = (m, s, m - s, s))
   
   resetXICHyperparameters = False
@@ -98,7 +122,15 @@ def fitLogitNormal(observedValues, params, plot):
     print("    Resetting mu/sigmaDetect hyperparameters to default values of muDetect = muXIC - 1.0 and sigmaDetect = 0.3")
     popt[1] = 0.3
     popt[0] = popt[2] - 1.0
-  
+
+    # PS
+    #popt[1] = 1.859
+    #popt[0] = -1.85
+
+    # ID
+    popt[1] = 1.611 # sigma
+    popt[0] = -6.242 # mu
+    
   #print("  params[\"muDetectInit\"], params[\"sigmaDetectInit\"] = %f, %f" % (popt[0], popt[1]))
   print("  params[\"muDetect\"], params[\"sigmaDetect\"] = %f, %f" % (popt[0], popt[1]))
   print("  params[\"muXIC\"], params[\"sigmaXIC\"] = %f, %f" % (popt[2], popt[3]))

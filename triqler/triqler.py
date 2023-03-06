@@ -2,12 +2,6 @@ from __future__ import print_function
 
 """triqler.triqler: provides entry point main()."""
 
-__version__ = "0.6.2"
-__copyright__ = '''Copyright (c) 2018-2020 Matthew The. All rights reserved.
-Written by Matthew The (matthew.the@scilifelab.se) in the
-School of Engineering Sciences in Chemistry, Biotechnology and Health at the 
-Royal Institute of Technology in Stockholm.'''
-
 import sys
 import os
 import collections
@@ -23,6 +17,14 @@ from . import qvality
 from . import hyperparameters
 from . import pgm
 from . import diff_exp
+from . import version
+
+__version__ = version.get_version_from_pyproject()
+__copyright__ = '''Copyright (c) 2018-2020 Matthew The. All rights reserved.
+Written by Matthew The (matthew.the@scilifelab.se) in the
+School of Engineering Sciences in Chemistry, Biotechnology and Health at the 
+Royal Institute of Technology in Stockholm.'''
+
 
 def main():
   print('Triqler version %s\n%s' % (__version__, __copyright__))
@@ -59,7 +61,7 @@ def parseArgs():
                      help='Prefix for decoy proteins.')
   
   apars.add_argument('--missing_value_prior', default = "default", metavar='D',
-                     help='Distribution to fit for missing value prior. Use "DIA" for using means of NaNs to fit the censored normal distribution. The "Default" option fits the censored normal distribution with all observed XIC values.')
+                     help='Distribution to fit for missing value prior. Use "DIA" for using means of NaNs to fit the censored normal distribution. The "default" option fits the censored normal distribution with all observed XIC values.')
   
   apars.add_argument('--min_samples', type=int, default=2, metavar='N', 
                      help='Minimum number of samples a peptide needed to be quantified in.')
@@ -104,6 +106,9 @@ def parseArgs():
   
   if params['minSamples'] < 2:
     sys.exit("ERROR: --min_samples should be >= 2")
+
+  if args.csv_field_size_limit is not None:
+    csv.field_size_limit(args.csv_field_size_limit)
   
   return args, params
   

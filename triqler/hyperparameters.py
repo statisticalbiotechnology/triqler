@@ -105,8 +105,7 @@ def fitLogitNormal(observedValues, params, plot):
   #minBin, maxBin = -2, 6
   vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), normed = True)
   bins = bins[:-1]
-  
-  #print(vals) # EDIT
+
   popt, _ = curve_fit(funcLogitNormal, bins, vals, p0 = (m, s, m - s, s))
   
   resetXICHyperparameters = False
@@ -122,14 +121,6 @@ def fitLogitNormal(observedValues, params, plot):
     print("    Resetting mu/sigmaDetect hyperparameters to default values of muDetect = muXIC - 1.0 and sigmaDetect = 0.3")
     popt[1] = 0.3
     popt[0] = popt[2] - 1.0
-
-    # PS
-    #popt[1] = 1.859
-    #popt[0] = -1.85
-
-    # ID
-    popt[1] = 1.611 # sigma
-    popt[0] = -6.242 # mu
     
   #print("  params[\"muDetectInit\"], params[\"sigmaDetectInit\"] = %f, %f" % (popt[0], popt[1]))
   print("  params[\"muDetect\"], params[\"sigmaDetect\"] = %f, %f" % (popt[0], popt[1]))

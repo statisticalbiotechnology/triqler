@@ -7,6 +7,7 @@ import sys
 import os
 import itertools
 
+import pandas as pd
 import numpy as np
 from scipy.stats import hypsecant, gamma, norm, binom, t, cauchy
 from scipy.optimize import curve_fit
@@ -24,7 +25,7 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   imputedVals, imputedDiffs, observedXICValues, protQuants, protDiffs, protStdevsInGroup, protGroupDiffs = list(), list(), list(), list(), list(), list(), list()
   quantRowsCollection = list()
   if params["missingValuePrior"] == "DIA":
-      peptide_group_means = [] # ADDED FOR DIA PRIOR
+      imputed_peptide_group_means = [] # ADDED FOR DIA PRIOR
   for prot, quantRows in protQuantRows:
     quantRows, quantMatrix = parsers.getQuantMatrix(quantRows)
     
@@ -52,13 +53,28 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     quantMatrixFiltered = np.log10(np.array([x for x, y in zip(quantMatrix, quantRows) if y.combinedPEP < 1.0]))  
 
     # Fit prior based on means of missing value
-    if params["missingValuePrior"] == "DIA":
+    if params["missingValuePrior"] == "DIA": 
         for peptide in quantMatrixFiltered:
             for group in params["groups"]:
-                group_means = peptide[group][~np.isnan(peptide[group])].mean()
-                if group_means != np.nan:
-                    peptide_group_means.append(group_means)
 
+                n_imputed_values = len(group) - (~np.isnan(peptide[group])).sum() # number of imputed values.  
+                if n_imputed_values == 0: # If the condition has no NaN, dont add it to imputed group mean
+                    continue
+                else:
+                    
+                    for n_imputed in range(n_imputed_values): # For every imputed value add it to imputed_peptide_group_mean
+                        group_means = peptide[group][~np.isnan(peptide[group])].mean()
+                        if group_means != np.nan: # If not all samples in condition in mean, append it into imputed_peptide_group_means
+                            imputed_peptide_group_means.append(group_means)
+
+    # DIA PRIOR COMMENT 
+    # We can impute in many different ways. The current version adds one condition imputed mean for every missing replicate 
+    # e.g. if we have [3 NaN NaN] and impute the NaN to 3, we add two 3 to our imputed_peptide_group_means list.
+    #
+    # We can also modify the code so that
+    # 1) We only add one mean per condition to imputed_peptide_group_means, e.g. [3 NaN NaN] adds only 3 one time to imputed_peptide_group_means 
+    # 2) We can add a filter so that if more than 50% (or x% or x samples) are missing in our condition we do not add it to our imputed_peptide_group_means
+    
     observedXICValues.extend(quantMatrixFiltered[~np.isnan(quantMatrixFiltered)])
     
     # counts number of NaNs per run, if there is only 1 non NaN in the column, we cannot use it for estimating the imputedDiffs distribution
@@ -70,9 +86,14 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
 
   # Add parameter to params for selecting fitLogitNormal
   if params["missingValuePrior"] == "DIA":
-      peptide_group_means = np.array(peptide_group_means)
-      peptide_group_means = peptide_group_means[~np.isnan(peptide_group_means)]
-      fitLogitNormal(peptide_group_means, params, plot) # DIA fitLogitNormal - missing value prior
+      
+      imputed_peptide_group_means = np.array(imputed_peptide_group_means)
+      imputed_peptide_group_means = imputed_peptide_group_means[~np.isnan(imputed_peptide_group_means)]
+      imputedValues = imputed_peptide_group_means
+      # Change this to fitLogitNormalDIA(observedValues, imputedValues, params, plot): 
+      # Which should be a modified version of fitLogitNormal
+      #fitLogitNormal(peptide_group_means, params, plot) # DIA fitLogitNormal - missing value prior
+      fitLogitNormalDIA(observedXICValues, imputedValues, params, plot)
   else:
       fitLogitNormal(observedXICValues, params, plot) # old fitLogitNormal - missing value prior
 
@@ -144,6 +165,96 @@ def fitLogitNormal(observedValues, params, plot):
     plt.xlabel("log10(intensity)", fontsize = 14)
     plt.legend()
     plt.tight_layout()
+    
+# Added for DIAPrior
+# Pass both observedValues and imputed values
+    #fitLogitNormalDIA(observedValues, imputedValues, params, plot):
+#def fitOneMinusLogit(observedValues, params, plot): #call fitlogitNormalDIA()
+def fitLogitNormalDIA(observedValues, imputedValues, params, plot):
+  m = np.mean(observedValues)
+  s = np.std(observedValues)
+  #minBin, maxBin = m - 4*s, m + 4*s
+  minBin, maxBin = -1, 4 # DIA prior binning interval... reasoning is that missing values will be close to zero. Higher intensity missing values should not be regarded. 
+  #minBin, maxBin = -2, 6
+  vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), normed = True)
+  bins = bins[:-1]
+  
+  DIA_bins = np.arange(minBin, maxBin, 0.1)
+  """
+  Need to do the binomial weighting to the curve fit
+    # We fit the fraction data we have to pmissings
+    # binaomial distribution wiki
+    #sigma.plot()
+    
+    # We fit the fraction data we have to pmissings
+    popt, pcov = curve_fit(pmissing, xdata, ydata, sigma=sigma)
+  """
+  
+
+  df_binned_imputed_mean_nans = pd.cut(imputedValues, DIA_bins, include_lowest=True)
+  df_binned_vals = pd.cut(observedValues, DIA_bins, include_lowest=True)
+  df_binned_missing_value_fraction = (df_binned_imputed_mean_nans.value_counts() / (df_binned_vals.value_counts()+df_binned_imputed_mean_nans.value_counts()))
+  df_binned_missing_value_fraction = pd.DataFrame(df_binned_missing_value_fraction.values, index = df_binned_missing_value_fraction.index, columns = ["fraction"])
+  df_binned_missing_value_fraction["n_count"] = (df_binned_vals.value_counts()+df_binned_imputed_mean_nans.value_counts())  
+  df_binned_missing_value_fraction.reset_index(inplace =True)
+  df_binned_missing_value_fraction.index = bins#[:-1]
+  df_binned_missing_value_fraction = df_binned_missing_value_fraction[df_binned_missing_value_fraction.n_count > 10] # I actually forgot what was the reasoning for the n_count > 10 heuristic...
+
+  xdata = df_binned_missing_value_fraction.index
+  ydata = df_binned_missing_value_fraction.fraction
+  sigma = np.sqrt(ydata * (1-ydata) / df_binned_missing_value_fraction.n_count) # uncertainty estimator, can we write this down again somewhere. I will 100  % forget the reasoning for this in the future
+  # I feel like we need to document and explain this somewhere because I have already forgot the reasoning for this. 
+
+  # This is to fit the normal logitNormal
+  popt, _ = curve_fit(funcLogitNormal, bins, vals, p0 = (m, s, m - s, s)) # replace  with code below.
+  
+  
+  popt_DIA, pcov_DIA = curve_fit(funcOneMinusLogit, xdata, ydata, sigma=sigma) # popt_DIA, funcOneMinusLogit is the function called pmissing in dia_sum/script/clean/plot_fraction_missing_values.py
+  
+  # what is xdata and ydata. 
+  # look at dia_sum/scripts/clean/plot_fraction_missing_values.py
+  
+  resetXICHyperparameters = False
+  # This is no longer valid for DIA
+  #if popt[0] < popt[2] - 5*popt[3] or popt[0] > popt[2] + 5*popt[3]:
+  #  print("  Warning: muDetect outside of expected region [", popt[2] - 5*popt[3] , ",", popt[2] + 5*popt[3], "]:", popt[0], ".")
+  #  resetXICHyperparameters = True
+  
+  # This is quite arbitrary???
+  #if popt_DIA[1] < 0.1 or popt_DIA[1] > 2.0:
+  #  print("  Warning: sigmaDetect outside of expected region [0.1,2.0]:" , popt[1], ".")
+  #  resetXICHyperparameters = True
+  
+  #if resetXICHyperparameters:
+  #  print("    Resetting mu/sigmaDetect hyperparameters to default values of muDetect = muXIC - 1.0 and sigmaDetect = 0.3")
+  #  popt[1] = 0.3
+  #  popt[0] = popt[2] - 1.0
+
+  # How do we handle above reseting of parameters???
+  
+  
+  #print("  params[\"muDetectInit\"], params[\"sigmaDetectInit\"] = %f, %f" % (popt[0], popt[1]))
+  print("  params[\"muDetect\"], params[\"sigmaDetect\"] = %f, %f" % (popt_DIA[0], popt_DIA[1]))
+  print("  params[\"muXIC\"], params[\"sigmaXIC\"] = %f, %f" % (popt[2], popt[3]))
+  #params["muDetectInit"], params["sigmaDetectInit"] = popt[0], popt[1]
+  #popt[0], popt[1] = popt[2] - popt[3]*3, popt[3]*1.5
+  params["muDetect"], params["sigmaDetect"] = popt_DIA[0], popt_DIA[1] #popt[0], popt[1] # estimated here
+  params["muXIC"], params["sigmaXIC"] = popt[2], popt[3] # not estimated here. We need to
+  if plot:
+    poptNormal, _ = curve_fit(funcNorm, bins, vals)
+    
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.title('Curve fits for muDetect, sigmaDetect, muXIC and sigmaXIC', fontsize = 14)
+    plt.bar(bins, vals, width = bins[1] - bins[0], alpha = 0.5, label = 'observed distribution')
+    plt.plot(bins, funcLogitNormal(bins, *popt), 'g', label='logit-normal fit', linewidth = 2.0)
+    plt.plot(bins, 0.5 + 0.5 * np.tanh((np.array(bins) - popt[0]) / popt[1]), 'm', label = "logit-part fit", linewidth = 2.0)
+    plt.plot(bins, funcNorm(bins, popt[2], popt[3]), 'c', label = "normal-part fit", linewidth = 2.0)
+    plt.plot(bins, funcNorm(bins, *poptNormal), 'r', label='normal fit (for comparison)', linewidth = 2.0, alpha = 0.5)
+    plt.ylabel("relative frequency", fontsize = 14)
+    plt.xlabel("log10(intensity)", fontsize = 14)
+    plt.legend()
+    plt.tight_layout()    
     
 def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
   vals, bins = np.histogram(ys, bins = x, normed = True)
@@ -247,4 +358,8 @@ def funcGamma(x, shape, sigma):
   
 def logit(x, muLogit, sigmaLogit):
   return 0.5 + 0.5 * np.tanh((np.array(x) - muLogit) / sigmaLogit)
+
+# Added for DIA prior from pgm.py
+def funcOneMinusLogit(x, muLogit, sigmaLogit):
+  return 1.0 - logit(x, muLogit, sigmaLogit) + np.nextafter(0, 1)
 

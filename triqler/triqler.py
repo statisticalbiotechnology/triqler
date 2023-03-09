@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 """triqler.triqler: provides entry point main()."""
-
 import sys
 import os
 import collections
@@ -59,7 +58,7 @@ def parseArgs():
   
   apars.add_argument('--decoy_pattern', default = "decoy_", metavar='P', 
                      help='Prefix for decoy proteins.')
-  
+
   apars.add_argument('--missing_value_prior', default = "default", metavar='D',
                      help='Distribution to fit for missing value prior. Use "DIA" for using means of NaNs to fit the censored normal distribution. The "default" option fits the censored normal distribution with all observed XIC values.')
   
@@ -86,6 +85,8 @@ def parseArgs():
   
   apars.add_argument('--write_fold_change_posteriors', default = '', metavar='F_OUT',
                      help='Write raw data of fold change posteriors to the specified file in TSV format.')
+
+  apars.add_argument('--csv-field-size-limit', type=int, help="Set a new maximum CSV field size")
   
   # ------------------------------------------------
   args = apars.parse_args()

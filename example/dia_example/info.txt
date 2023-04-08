@@ -1,0 +1,3 @@
+The example data is from the PS workflow of our manuscript Triqler for Protein Summarization of Data from Data-Independent Acquisition Mass Spectrometry
+(https://pubs.acs.org/doi/full/10.1021/acs.jproteome.2c00607)
+

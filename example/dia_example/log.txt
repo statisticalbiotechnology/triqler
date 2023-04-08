@@ -1,0 +1,97 @@
+python -m triqler --missing_value_prior DIA --decoy_pattern DECOY LFQBench_PS.csv 
+
+Triqler version None
+Copyright (c) 2018-2020 Matthew The. All rights reserved.
+Written by Matthew The (matthew.the@scilifelab.se) in the
+School of Engineering Sciences in Chemistry, Biotechnology and Health at the 
+Royal Institute of Technology in Stockholm.
+Issued command: triqler.py --missing_value_prior DIA --decoy_pattern DECOY LFQBench_PS.csv
+Parsing triqler input file
+  Reading row 0
+Calculating identification PEPs
+  Identified 163061 PSMs at 1% FDR
+Selecting best feature per run and spectrum
+  featureGroupIdx: 0
+Dividing intensities by 0.1 for increased readability
+Calculating peptide-level identification PEPs
+  Identified 28588 peptides at 1% FDR
+Writing peptide quant rows to file: LFQBench_PS.csv.pqr.tsv
+Calculating protein-level identification PEPs
+  Identified 3308 proteins at 1% FDR
+Fitting hyperparameters
+  params["muDetect"], params["sigmaDetect"] = 0.109406, 1.281167
+  params["muXIC"], params["sigmaXIC"] = 3.006534, 0.534186
+  params["muProtein"], params["sigmaProtein"] = -0.003126, 0.076123
+  params["muFeatureDiff"], params["sigmaFeatureDiff"] = -0.006509, 0.042308
+  params["shapeInGroupStdevs"], params["scaleInGroupStdevs"] = 2.494553, 0.012720
+Minimum advisable --fold_change_eval: 0.52
+Calculating protein posteriors
+  50 / 3288 1.52%
+  100 / 3288 3.04%
+  150 / 3288 4.56%
+  200 / 3288 6.08%
+  250 / 3288 7.60%
+  300 / 3288 9.12%
+  350 / 3288 10.64%
+  400 / 3288 12.17%
+  450 / 3288 13.69%
+  500 / 3288 15.21%
+  550 / 3288 16.73%
+  600 / 3288 18.25%
+  650 / 3288 19.77%
+  700 / 3288 21.29%
+  750 / 3288 22.81%
+  800 / 3288 24.33%
+  850 / 3288 25.85%
+  900 / 3288 27.37%
+  950 / 3288 28.89%
+  1000 / 3288 30.41%
+  1050 / 3288 31.93%
+  1100 / 3288 33.45%
+  1150 / 3288 34.98%
+  1200 / 3288 36.50%
+  1250 / 3288 38.02%
+  1300 / 3288 39.54%
+  1350 / 3288 41.06%
+  1400 / 3288 42.58%
+  1450 / 3288 44.10%
+  1500 / 3288 45.62%
+  1550 / 3288 47.14%
+  1600 / 3288 48.66%
+  1650 / 3288 50.18%
+  1700 / 3288 51.70%
+  1750 / 3288 53.22%
+  1800 / 3288 54.74%
+  1850 / 3288 56.27%
+  1900 / 3288 57.79%
+  1950 / 3288 59.31%
+  2000 / 3288 60.83%
+  2050 / 3288 62.35%
+  2100 / 3288 63.87%
+  2150 / 3288 65.39%
+  2200 / 3288 66.91%
+  2250 / 3288 68.43%
+  2300 / 3288 69.95%
+  2350 / 3288 71.47%
+  2400 / 3288 72.99%
+  2450 / 3288 74.51%
+  2500 / 3288 76.03%
+  2550 / 3288 77.55%
+  2600 / 3288 79.08%
+  2650 / 3288 80.60%
+  2700 / 3288 82.12%
+  2750 / 3288 83.64%
+  2800 / 3288 85.16%
+  2850 / 3288 86.68%
+  2900 / 3288 88.20%
+  2950 / 3288 89.72%
+  3000 / 3288 91.24%
+  3050 / 3288 92.76%
+  3100 / 3288 94.28%
+  3150 / 3288 95.80%
+  3200 / 3288 97.32%
+  3250 / 3288 98.84%
+Comparing 1 to 2
+  output file: proteins.tsv
+  Found 786 target proteins as differentially abundant at 5% FDR
+Triqler execution took 74.95592285900057 seconds wall clock time

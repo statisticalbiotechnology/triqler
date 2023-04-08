@@ -25,7 +25,7 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
   imputedVals, imputedDiffs, observedXICValues, protQuants, protDiffs, protStdevsInGroup, protGroupDiffs = list(), list(), list(), list(), list(), list(), list()
   quantRowsCollection = list()
   if params["missingValuePrior"] == "DIA":
-      imputed_peptide_group_means = [] # ADDED FOR DIA PRIOR
+      imputed_peptide_group_means = [] # Added for DIA prior
   for prot, quantRows in protQuantRows:
     quantRows, quantMatrix = parsers.getQuantMatrix(quantRows)
     
@@ -36,18 +36,10 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     protQuants.extend([np.log10(x) for x in geoAvgQuantRow if not np.isnan(x)])
 
     args = parsers.getQuantGroups(geoAvgQuantRow, params["groups"], np.log10)
-    #means = list()
     for group in args:
       if np.count_nonzero(~np.isnan(group)) > 1:
         protDiffs.extend(group - np.mean(group))
         protStdevsInGroup.append(np.std(group))
-      #if np.count_nonzero(~np.isnan(group)) > 0:
-      #  means.append(np.mean(group))
-    
-    #if np.count_nonzero(~np.isnan(means)) > 1:
-    #  for mean in means:  
-    #    #protGroupDiffs.append(mean - np.mean(means))
-    #    protGroupDiffs.append(mean)
 
 
     quantMatrixFiltered = np.log10(np.array([x for x, y in zip(quantMatrix, quantRows) if y.combinedPEP < 1.0]))  
@@ -90,13 +82,9 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
       imputed_peptide_group_means = np.array(imputed_peptide_group_means)
       imputed_peptide_group_means = imputed_peptide_group_means[~np.isnan(imputed_peptide_group_means)]
       imputedValues = imputed_peptide_group_means
-      # Change this to fitLogitNormalDIA(observedValues, imputedValues, params, plot): 
-      # Which should be a modified version of fitLogitNormal
-      #fitLogitNormal(peptide_group_means, params, plot) # DIA fitLogitNormal - missing value prior
-      fitLogitNormalDIA(observedXICValues, imputedValues, params, plot)
+      fitLogitNormalDIA(observedXICValues, imputedValues, params, plot) # DIA fitLogitNormal - missing value prior
   else:
       fitLogitNormal(observedXICValues, params, plot) # old fitLogitNormal - missing value prior
-
 
   fitDist(protQuants, funcHypsec, "log10(protein ratio)", ["muProtein", "sigmaProtein"], params, plot)
     
@@ -116,14 +104,11 @@ def fitPriors(peptQuantRows, params, printImputedVals = False, plot = False):
     fitDist(protDiffs, funcHypsec, "log10(protein diff in group)", ["muInGroupDiffs", "sigmaInGroupDiffs"], params, plot)
     params['inGroupDiffPrior'] = funcHypsec(params['proteinDiffCandidates'], params['muInGroupDiffs'], params['sigmaInGroupDiffs'])
   
-  #fitDist(protGroupDiffs, funcHypsec, "log10(protein diff between groups)", ["muProteinGroupDiffs", "sigmaProteinGroupDiffs"], params, plot)
   
 def fitLogitNormal(observedValues, params, plot):
   m = np.mean(observedValues)
   s = np.std(observedValues)
   minBin, maxBin = m - 4*s, m + 4*s
-
-  #minBin, maxBin = -2, 6
   vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), normed = True)
   bins = bins[:-1]
 
@@ -143,11 +128,8 @@ def fitLogitNormal(observedValues, params, plot):
     popt[1] = 0.3
     popt[0] = popt[2] - 1.0
     
-  #print("  params[\"muDetectInit\"], params[\"sigmaDetectInit\"] = %f, %f" % (popt[0], popt[1]))
   print("  params[\"muDetect\"], params[\"sigmaDetect\"] = %f, %f" % (popt[0], popt[1]))
   print("  params[\"muXIC\"], params[\"sigmaXIC\"] = %f, %f" % (popt[2], popt[3]))
-  #params["muDetectInit"], params["sigmaDetectInit"] = popt[0], popt[1]
-  #popt[0], popt[1] = popt[2] - popt[3]*3, popt[3]*1.5
   params["muDetect"], params["sigmaDetect"] = popt[0], popt[1]
   params["muXIC"], params["sigmaXIC"] = popt[2], popt[3]
   if plot:
@@ -167,15 +149,10 @@ def fitLogitNormal(observedValues, params, plot):
     plt.tight_layout()
     
 # Added for DIAPrior
-# Pass both observedValues and imputed values
-    #fitLogitNormalDIA(observedValues, imputedValues, params, plot):
-#def fitOneMinusLogit(observedValues, params, plot): #call fitlogitNormalDIA()
 def fitLogitNormalDIA(observedValues, imputedValues, params, plot):
   m = np.mean(observedValues)
   s = np.std(observedValues)
-  #minBin, maxBin = m - 4*s, m + 4*s
-  minBin, maxBin = -1, 4 # DIA prior binning interval... reasoning is that missing values will be close to zero. Higher intensity missing values should not be regarded. 
-  #minBin, maxBin = -2, 6
+  minBin, maxBin = -1, 4 # DIA prior binning interval... reasoning is that missing values will be close to zero. Higher intensity missing values should not be regarded. We could also go with -2, 6 for example.
   vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), normed = True)
   bins = bins[:-1]
   
@@ -202,42 +179,32 @@ def fitLogitNormalDIA(observedValues, imputedValues, params, plot):
 
   xdata = df_binned_missing_value_fraction.index
   ydata = df_binned_missing_value_fraction.fraction
-  sigma = np.sqrt(ydata * (1-ydata) / df_binned_missing_value_fraction.n_count) # uncertainty estimator, can we write this down again somewhere. I will 100  % forget the reasoning for this in the future
+  sigma = np.sqrt(ydata * (1-ydata) / df_binned_missing_value_fraction.n_count) # Used for the binomial weighing of the curve_fit function. An uncertainty estimator, can we write this down again somewhere. I will 100  % forget the reasoning for this in the future
   # I feel like we need to document and explain this somewhere because I have already forgot the reasoning for this. 
 
   # This is to fit the normal logitNormal
   popt, _ = curve_fit(funcLogitNormal, bins, vals, p0 = (m, s, m - s, s)) # replace  with code below.
   
-  
-  popt_DIA, pcov_DIA = curve_fit(funcOneMinusLogit, xdata, ydata, sigma=sigma) # popt_DIA, funcOneMinusLogit is the function called pmissing in dia_sum/script/clean/plot_fraction_missing_values.py
-  
-  # what is xdata and ydata. 
-  # look at dia_sum/scripts/clean/plot_fraction_missing_values.py
-  
+  popt_DIA, pcov_DIA = curve_fit(funcOneMinusLogit, xdata, ydata, sigma=sigma) # popt_DIA, funcOneMinusLogit is the function called pmissing in dia_sum/script/clean/plot_fraction_missing_values.py. The sigma is for the binomial weighing to the curve_fit
+    
   resetXICHyperparameters = False
-  # This is no longer valid for DIA
-  #if popt[0] < popt[2] - 5*popt[3] or popt[0] > popt[2] + 5*popt[3]:
-  #  print("  Warning: muDetect outside of expected region [", popt[2] - 5*popt[3] , ",", popt[2] + 5*popt[3], "]:", popt[0], ".")
-  #  resetXICHyperparameters = True
-  
-  # This is quite arbitrary???
-  #if popt_DIA[1] < 0.1 or popt_DIA[1] > 2.0:
-  #  print("  Warning: sigmaDetect outside of expected region [0.1,2.0]:" , popt[1], ".")
-  #  resetXICHyperparameters = True
-  
-  #if resetXICHyperparameters:
-  #  print("    Resetting mu/sigmaDetect hyperparameters to default values of muDetect = muXIC - 1.0 and sigmaDetect = 0.3")
-  #  popt[1] = 0.3
-  #  popt[0] = popt[2] - 1.0
 
-  # How do we handle above reseting of parameters???
+  if popt_DIA[1] < 0.005 or popt_DIA[1] > 10.0: #Heureistically set
+    print("  Warning: sigmaDetect outside of expected region [0.005,10.0]:" , popt_DIA[1], ".")
+    resetXICHyperparameters = True
   
+  if popt_DIA[0] < -100 or popt_DIA[0] > 100.0: #Heureistically set
+    print("  Warning: muDetect outside of expected region [-100.0,100.0]:" , popt_DIA[0], ".")
+    resetXICHyperparameters = True
+    
+  if resetXICHyperparameters:
+    print("    Resetting mu/sigmaDetect hyperparameters to default DIA values of muDetect = muXIC - 1.0 and sigmaDetect = 0.3")
+    popt_DIA[1] = 0.3
+    popt_DIA[0] = popt[2] - 1.0
   
-  #print("  params[\"muDetectInit\"], params[\"sigmaDetectInit\"] = %f, %f" % (popt[0], popt[1]))
   print("  params[\"muDetect\"], params[\"sigmaDetect\"] = %f, %f" % (popt_DIA[0], popt_DIA[1]))
   print("  params[\"muXIC\"], params[\"sigmaXIC\"] = %f, %f" % (popt[2], popt[3]))
-  #params["muDetectInit"], params["sigmaDetectInit"] = popt[0], popt[1]
-  #popt[0], popt[1] = popt[2] - popt[3]*3, popt[3]*1.5
+
   params["muDetect"], params["sigmaDetect"] = popt_DIA[0], popt_DIA[1] #popt[0], popt[1] # estimated here
   params["muXIC"], params["sigmaXIC"] = popt[2], popt[3] # not estimated here. We need to
   if plot:

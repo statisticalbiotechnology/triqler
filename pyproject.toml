@@ -2,7 +2,7 @@
 name = "triqler"
 version = "0.6.4"
 description = "Triqler: TRansparent Identification-Quantification-Linked Error Rates"
-authors = ["Matthew The <matthew.the@tum.de>"]
+authors = ["Matthew The <matthew.the@tum.de>", "Patrick Truong <patrick.truong@scilifelab.se>"]
 license= "Apache-2.0"
 readme = "README.rst"
 homepage = "https://github.com/statisticalbiotechnology/triqler"
@@ -12,6 +12,17 @@ include = [
   "LICENSE",
 ]
 #build = "build.py" # this creates platform and python version specific packages when running poetry build. Not necessary here since we do not have compiled code, e.g. cython
+
+[tool.poetry.scripts]
+triqler = 'triqler.triqler:main'
+
+dinosaur2triqler = 'triqler.convert.dinosaur:main'
+maxquant2triqler = 'triqler.convert.maxquant:main'
+quandenser2triqler = 'triqler.convert.quandenser:main'
+diann2triqler = 'triqler.convert.diann:main'
+
+plot_hyperparameter_fits = 'triqler.distribution.plot_hyperparameter_fits:main'
+plot_posteriors = 'triqler.distribution.plot_posteriors:main'
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.12"

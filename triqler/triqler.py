@@ -58,6 +58,9 @@ def parseArgs():
   
   apars.add_argument('--decoy_pattern', default = "decoy_", metavar='P', 
                      help='Prefix for decoy proteins.')
+
+  apars.add_argument('--missing_value_prior', default = "default", metavar='D',
+                     help='Distribution to fit for missing value prior. Use "DIA" for using means of NaNs to fit the censored normal distribution. The "default" option fits the censored normal distribution with all observed XIC values.')
   
   apars.add_argument('--min_samples', type=int, default=2, metavar='N', 
                      help='Minimum number of samples a peptide needed to be quantified in.')
@@ -94,6 +97,7 @@ def parseArgs():
   params['t-test'] = args.ttest
   params['minSamples'] = args.min_samples
   params['decoyPattern'] = args.decoy_pattern
+  params['missingValuePrior'] = args.missing_value_prior
   params['numThreads'] = args.num_threads
   params['writeSpectrumQuants'] = args.write_spectrum_quants
   params['proteinPosteriorsOutput'] = args.write_protein_posteriors

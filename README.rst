@@ -20,8 +20,9 @@ the converters to the Triqler input format are available in our
 Method description / Citation
 -----------------------------
 
-The, M. & Käll, L. (2019). Integrated identification and quantification error probabilities for shotgun proteomics. *Molecular & Cellular Proteomics, 18* (3), 561-570.
+The, M. & Käll, L. (2019). Integrated identification and quantification error probabilities for shotgun proteomics. *Molecular & Cellular Proteomics, 18* (3), 561-570. https://doi.org/10.1074/mcp.RA118.001018
 
+Truong, P., The, M., & Käll, L. (2023). Triqler for Protein Summarization of Data from Data-Independent Acquisition Mass Spectrometry. *Journal of Proteome Research, 22* (4), 1359-1366. https://doi.org/10.1021/acs.jproteome.2c00607
 
 Requirements
 ------------
@@ -58,13 +59,14 @@ Usage
 
 ::
 
-  usage: python -m triqler [-h] [--out_file OUT] [--fold_change_eval F]
-                   [--decoy_pattern P] [--min_samples N] [--num_threads N]
-                   [--ttest] [--write_spectrum_quants]
-                   [--write_protein_posteriors P_OUT]
-                   [--write_group_posteriors G_OUT]
-                   [--write_fold_change_posteriors F_OUT]
-                   IN_FILE
+  usage: triqler [-h] [--out_file OUT] [--fold_change_eval F]
+               [--decoy_pattern P] [--missing_value_prior D] [--min_samples N]
+               [--num_threads N] [--ttest] [--write_spectrum_quants]
+               [--write_protein_posteriors P_OUT]
+               [--write_group_posteriors G_OUT]
+               [--write_fold_change_posteriors F_OUT]
+               [--csv-field-size-limit CSV_FIELD_SIZE_LIMIT]
+               IN_FILE
 
   positional arguments:
     IN_FILE               List of PSMs with abundances (not log transformed!)
@@ -79,11 +81,17 @@ Usage
                           proteins.tsv)
     --fold_change_eval F  log2 fold change evaluation threshold. (default: 1.0)
     --decoy_pattern P     Prefix for decoy proteins. (default: decoy_)
+    --missing_value_prior D
+                          Distribution to fit for missing value prior. Use "DIA"
+                          for using means of NaNs to fit the censored normal
+                          distribution. The "default" option fits the censored
+                          normal distribution with all observed XIC values.
+                          (default: default)
     --min_samples N       Minimum number of samples a peptide needed to be
                           quantified in. (default: 2)
     --num_threads N       Number of threads, by default this is equal to the
                           number of CPU cores available on the device. (default:
-                          8)
+                          6)
     --ttest               Use t-test for evaluating differential expression
                           instead of posterior probabilities. (default: False)
     --write_spectrum_quants
@@ -99,6 +107,8 @@ Usage
     --write_fold_change_posteriors F_OUT
                           Write raw data of fold change posteriors to the
                           specified file in TSV format. (default: )
+    --csv-field-size-limit CSV_FIELD_SIZE_LIMIT
+                          Set a new maximum CSV field size (default: None)
 
 
 Example

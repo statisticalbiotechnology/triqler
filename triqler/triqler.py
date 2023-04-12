@@ -19,10 +19,12 @@ from . import diff_exp
 from . import version
 
 __version__ = version.get_version_from_pyproject()
-__copyright__ = '''Copyright (c) 2018-2020 Matthew The. All rights reserved.
-Written by Matthew The (matthew.the@scilifelab.se) in the
-School of Engineering Sciences in Chemistry, Biotechnology and Health at the 
-Royal Institute of Technology in Stockholm.'''
+__copyright__ = '''Copyright (c) 2018-2023 Matthew The, Patrick Truong. All rights reserved.
+Written by:
+- Matthew The (matthew.the@scilifelab.se)
+- Patrick Truong (patrick.truong@scilifelab.se)
+in the School of Engineering Sciences in Chemistry, Biotechnology and Health
+at the Royal Institute of Technology in Stockholm.'''
 
 
 def main():

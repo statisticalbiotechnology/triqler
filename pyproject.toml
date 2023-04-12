@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "triqler"
-version = "0.6.4"
+version = "0.7.0"
 description = "Triqler: TRansparent Identification-Quantification-Linked Error Rates"
 authors = ["Matthew The <matthew.the@tum.de>", "Patrick Truong <patrick.truong@scilifelab.se>"]
 license= "Apache-2.0"

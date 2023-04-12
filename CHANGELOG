@@ -1,3 +1,9 @@
+v0.07
+* Added option to estimate hyperparameter priors for DIA data
+* Added DIA-NN to triqler converter
+* Added pandas as dependency for DIA prior
+* Clean up sub-packages (#19)
+
 v0.06.4
 * Fixed csv field_size_limit function call (#17)
 * Added poetry environment

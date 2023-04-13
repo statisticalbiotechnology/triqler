@@ -1,3 +1,6 @@
+v0.07.1
+* Add file list mapping functionality to DIA-NN converter (#20)
+
 v0.07
 * Added option to estimate hyperparameter priors for DIA data
 * Added DIA-NN to triqler converter

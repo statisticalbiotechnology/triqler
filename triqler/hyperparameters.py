@@ -109,7 +109,11 @@ def fitLogitNormal(observedValues, params, plot):
   m = np.mean(observedValues)
   s = np.std(observedValues)
   minBin, maxBin = m - 4*s, m + 4*s
-  vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), normed = True)
+  try:
+    vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), normed = True)
+  except TypeError:
+    # TypeError will be caused by deprecated normed for np >= 1.24
+    vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), density = True)
   bins = bins[:-1]
 
   popt, _ = curve_fit(funcLogitNormal, bins, vals, p0 = (m, s, m - s, s))
@@ -153,7 +157,11 @@ def fitLogitNormalDIA(observedValues, imputedValues, params, plot):
   m = np.mean(observedValues)
   s = np.std(observedValues)
   minBin, maxBin = -1, 4 # DIA prior binning interval... reasoning is that missing values will be close to zero. Higher intensity missing values should not be regarded. We could also go with -2, 6 for example.
-  vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), normed = True)
+  try:
+    vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), normed = True)
+  except TypeError:
+    # TypeError will be caused by deprecated normed for np >= 1.24
+    vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), density = True)
   bins = bins[:-1]
   
   DIA_bins = np.arange(minBin, maxBin, 0.1)
@@ -224,7 +232,11 @@ def fitLogitNormalDIA(observedValues, imputedValues, params, plot):
     plt.tight_layout()    
     
 def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
-  vals, bins = np.histogram(ys, bins = x, normed = True)
+  try:
+    vals, bins = np.histogram(ys, bins = x, normed = True)
+  except TypeError:
+    # TypeError will be caused by deprecated normed for np >= 1.24
+    vals, bins = np.histogram(ys, bins = x, density = True)
   bins = bins[:-1]
   popt, _ = curve_fit(func, bins, vals)
   outputString = ", ".join(["params[\"%s\"]"]*len(popt)) + " = " + ", ".join(["%f"] * len(popt))

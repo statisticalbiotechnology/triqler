@@ -142,14 +142,14 @@ def parseMqEvidenceFile(mqEvidenceFile, fileInfoList, params):
       continue
     
     for prefix, intensityCol in intensityChannels:
-      run, condition, sample, fraction = getFileInfo(prefix + row[fileCol], fileList, fileInfoList, row[experimentCol], row[fractionCol])
+      run, condition, sample, fraction = getFileInfo(prefix + row[fileCol], fileList, fileInfoList, row[experimentCol], row[fractionCol], fractionCol)
       
       triqlerRow = parsers.TriqlerInputRow(sample, condition, row[chargeCol], lineIdx, linkPEP, featureClusterIdx, np.log(float(row[scoreCol])), float(row[intensityCol]), row[peptCol], proteins)
       peptideToFeatureMap[key].append((triqlerRow, float(row[rtCol]), fraction))
     
   return peptideToFeatureMap
 
-def getFileInfo(fileName, fileList, fileInfoList, sampleInEvidence, fractionInEvidence):
+def getFileInfo(fileName, fileList, fileInfoList, sampleInEvidence, fractionInEvidence, fractionCol):
   fileIdx = fileList.index(fileName)
   run, condition, sample, fraction = fileInfoList[fileIdx]
   if fraction == -1 and fractionCol != -1:

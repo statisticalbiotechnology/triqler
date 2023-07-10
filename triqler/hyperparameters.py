@@ -110,7 +110,7 @@ def fitLogitNormal(observedValues, params, plot):
   s = np.std(observedValues)
   minBin, maxBin = m - 4*s, m + 4*s
   try:
-    vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), normed = True)
+    vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), density = True)
   except TypeError:
     # TypeError will be caused by deprecated normed for np >= 1.24
     vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), density = True)
@@ -158,7 +158,7 @@ def fitLogitNormalDIA(observedValues, imputedValues, params, plot):
   s = np.std(observedValues)
   minBin, maxBin = -1, 4 # DIA prior binning interval... reasoning is that missing values will be close to zero. Higher intensity missing values should not be regarded. We could also go with -2, 6 for example.
   try:
-    vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), normed = True)
+    vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), density = True)
   except TypeError:
     # TypeError will be caused by deprecated normed for np >= 1.24
     vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), density = True)
@@ -233,7 +233,7 @@ def fitLogitNormalDIA(observedValues, imputedValues, params, plot):
     
 def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
   try:
-    vals, bins = np.histogram(ys, bins = x, normed = True)
+    vals, bins = np.histogram(ys, bins = x, density = True)
   except TypeError:
     # TypeError will be caused by deprecated normed for np >= 1.24
     vals, bins = np.histogram(ys, bins = x, density = True)

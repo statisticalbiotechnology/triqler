@@ -5,8 +5,6 @@ from __future__ import print_function
 import itertools
 
 import numpy as np
-from scipy.stats import f_oneway, gamma
-from scipy.optimize import curve_fit
 
 from . import parsers
 from . import convolution_dp

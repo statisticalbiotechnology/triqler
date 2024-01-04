@@ -1,3 +1,9 @@
+v0.07.2
+* Replace multiprocessing_pool by job-pool package
+* Update version retrieval
+* First unit test
+* Linting
+
 v0.07.1
 * Add file list mapping functionality to DIA-NN converter (#20)
 

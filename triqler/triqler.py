@@ -11,20 +11,12 @@ import warnings
 
 import numpy as np
 
+from . import __version__, __copyright__
 from . import parsers
 from . import qvality
 from . import hyperparameters
 from . import pgm
 from . import diff_exp
-from . import version
-
-__version__ = version.get_version_from_pyproject()
-__copyright__ = """Copyright (c) 2018-2023 Matthew The, Patrick Truong. All rights reserved.
-Written by:
-- Matthew The (matthew.the@scilifelab.se)
-- Patrick Truong (patrick.truong@scilifelab.se)
-in the School of Engineering Sciences in Chemistry, Biotechnology and Health
-at the Royal Institute of Technology in Stockholm."""
 
 
 def main():

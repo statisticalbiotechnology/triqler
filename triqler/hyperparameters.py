@@ -182,13 +182,15 @@ def fitPriors(peptQuantRows, params, printImputedVals=False, plot=False):
 
 
 def fitLogitNormal(observedValues, params, plot):
-    m = np.mean(observedValues)
-    s = np.std(observedValues)
-    minBin, maxBin = m - 4 * s, m + 4 * s
-    vals, bins = np.histogram(
-        observedValues, bins=np.arange(minBin, maxBin, 0.1), normed=True
-    )
-    bins = bins[:-1]
+  m = np.mean(observedValues)
+  s = np.std(observedValues)
+  minBin, maxBin = m - 4*s, m + 4*s
+  try:
+    vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), normed = True)
+  except TypeError:
+    # TypeError will be caused by deprecated normed for np >= 1.24
+    vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), density = True)
+  bins = bins[:-1]
 
     popt, _ = curve_fit(funcLogitNormal, bins, vals, p0=(m, s, m - s, s))
 
@@ -275,19 +277,18 @@ def fitLogitNormal(observedValues, params, plot):
 
 # Added for DIAPrior
 def fitLogitNormalDIA(observedValues, imputedValues, params, plot):
-    m = np.mean(observedValues)
-    s = np.std(observedValues)
-    minBin, maxBin = (
-        -1,
-        4,
-    )  # DIA prior binning interval... reasoning is that missing values will be close to zero. Higher intensity missing values should not be regarded. We could also go with -2, 6 for example.
-    vals, bins = np.histogram(
-        observedValues, bins=np.arange(minBin, maxBin, 0.1), normed=True
-    )
-    bins = bins[:-1]
-
-    DIA_bins = np.arange(minBin, maxBin, 0.1)
-    """
+  m = np.mean(observedValues)
+  s = np.std(observedValues)
+  minBin, maxBin = -1, 4 # DIA prior binning interval... reasoning is that missing values will be close to zero. Higher intensity missing values should not be regarded. We could also go with -2, 6 for example.
+  try:
+    vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), normed = True)
+  except TypeError:
+    # TypeError will be caused by deprecated normed for np >= 1.24
+    vals, bins = np.histogram(observedValues, bins = np.arange(minBin, maxBin, 0.1), density = True)
+  bins = bins[:-1]
+  
+  DIA_bins = np.arange(minBin, maxBin, 0.1)
+  """
   Need to do the binomial weighting to the curve fit
     # We fit the fraction data we have to pmissings
     # binaomial distribution wiki
@@ -363,173 +364,84 @@ def fitLogitNormalDIA(observedValues, imputedValues, params, plot):
     )
     print('  params["muXIC"], params["sigmaXIC"] = %f, %f' % (popt[2], popt[3]))
 
-    params["muDetect"], params["sigmaDetect"] = (
-        popt_DIA[0],
-        popt_DIA[1],
-    )  # popt[0], popt[1] # estimated here
-    params["muXIC"], params["sigmaXIC"] = (
-        popt[2],
-        popt[3],
-    )  # not estimated here. We need to
-    if plot:
-        poptNormal, _ = curve_fit(funcNorm, bins, vals)
-
-        import matplotlib.pyplot as plt
-
-        plt.figure()
-        plt.title(
-            "Curve fits for muDetect, sigmaDetect, muXIC and sigmaXIC", fontsize=14
-        )
-        plt.bar(
-            bins,
-            vals,
-            width=bins[1] - bins[0],
-            alpha=0.5,
-            label="observed distribution",
-        )
-        plt.plot(
-            bins,
-            funcLogitNormal(bins, *popt),
-            "g",
-            label="logit-normal fit",
-            linewidth=2.0,
-        )
-        plt.plot(
-            bins,
-            0.5 + 0.5 * np.tanh((np.array(bins) - popt[0]) / popt[1]),
-            "m",
-            label="logit-part fit",
-            linewidth=2.0,
-        )
-        plt.plot(
-            bins,
-            funcNorm(bins, popt[2], popt[3]),
-            "c",
-            label="normal-part fit",
-            linewidth=2.0,
-        )
-        plt.plot(
-            bins,
-            funcNorm(bins, *poptNormal),
-            "r",
-            label="normal fit (for comparison)",
-            linewidth=2.0,
-            alpha=0.5,
-        )
-        plt.ylabel("relative frequency", fontsize=14)
-        plt.xlabel("log10(intensity)", fontsize=14)
-        plt.legend()
-        plt.tight_layout()
-
-
-def fitDist(ys, func, xlabel, varNames, params, plot, x=np.arange(-2, 2, 0.01)):
-    vals, bins = np.histogram(ys, bins=x, normed=True)
-    bins = bins[:-1]
-    popt, _ = curve_fit(func, bins, vals)
-    outputString = (
-        ", ".join(['params["%s"]'] * len(popt)) + " = " + ", ".join(["%f"] * len(popt))
-    )
-    for varName, val in zip(varNames, popt):
-        params[varName] = val
-
+  params["muDetect"], params["sigmaDetect"] = popt_DIA[0], popt_DIA[1] #popt[0], popt[1] # estimated here
+  params["muXIC"], params["sigmaXIC"] = popt[2], popt[3] # not estimated here. We need to
+  if plot:
+    poptNormal, _ = curve_fit(funcNorm, bins, vals)
+    
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.title('Curve fits for muDetect, sigmaDetect, muXIC and sigmaXIC', fontsize = 14)
+    plt.bar(bins, vals, width = bins[1] - bins[0], alpha = 0.5, label = 'observed distribution')
+    plt.plot(bins, funcLogitNormal(bins, *popt), 'g', label='logit-normal fit', linewidth = 2.0)
+    plt.plot(bins, 0.5 + 0.5 * np.tanh((np.array(bins) - popt[0]) / popt[1]), 'm', label = "logit-part fit", linewidth = 2.0)
+    plt.plot(bins, funcNorm(bins, popt[2], popt[3]), 'c', label = "normal-part fit", linewidth = 2.0)
+    plt.plot(bins, funcNorm(bins, *poptNormal), 'r', label='normal fit (for comparison)', linewidth = 2.0, alpha = 0.5)
+    plt.ylabel("relative frequency", fontsize = 14)
+    plt.xlabel("log10(intensity)", fontsize = 14)
+    plt.legend()
+    plt.tight_layout()    
+    
+def fitDist(ys, func, xlabel, varNames, params, plot, x = np.arange(-2,2,0.01)):
+  try:
+    vals, bins = np.histogram(ys, bins = x, normed = True)
+  except TypeError:
+    # TypeError will be caused by deprecated normed for np >= 1.24
+    vals, bins = np.histogram(ys, bins = x, density = True)
+  bins = bins[:-1]
+  popt, _ = curve_fit(func, bins, vals)
+  outputString = ", ".join(["params[\"%s\"]"]*len(popt)) + " = " + ", ".join(["%f"] * len(popt))
+  for varName, val in zip(varNames, popt):
+    params[varName] = val
+  
+  if func == funcHypsec:
+    fitLabel = "hypsec fit"
+  elif func == funcNorm:
+    fitLabel = "normal fit"
+  elif func == funcGamma:
+    fitLabel = "gamma fit"
+  else:
+    fitLabel = "distribution fit"
+  print("  " + outputString % tuple(varNames + list(popt)))
+  if plot:    
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.title("Curve fit for " + " ".join(varNames), fontsize = 14)
+    plt.bar(bins, vals, width = bins[1] - bins[0], label = 'observed distribution')
+    plt.plot(bins, func(bins, *popt), 'g', label=fitLabel, linewidth = 2.0)
     if func == funcHypsec:
-        fitLabel = "hypsec fit"
-    elif func == funcNorm:
-        fitLabel = "normal fit"
-    elif func == funcGamma:
-        fitLabel = "gamma fit"
-    else:
-        fitLabel = "distribution fit"
-    print("  " + outputString % tuple(varNames + list(popt)))
-    if plot:
-        import matplotlib.pyplot as plt
-
-        plt.figure()
-        plt.title("Curve fit for " + " ".join(varNames), fontsize=14)
-        plt.bar(bins, vals, width=bins[1] - bins[0], label="observed distribution")
-        plt.plot(bins, func(bins, *popt), "g", label=fitLabel, linewidth=2.0)
-        if func == funcHypsec:
-            poptNormal, _ = curve_fit(funcNorm, bins, vals)
-            plt.plot(
-                bins,
-                funcNorm(bins, *poptNormal),
-                "r",
-                label="normal fit (for comparison)",
-                linewidth=2.0,
-                alpha=0.5,
-            )
-
-            if False:
-                funcStudentT = lambda x, df, mu, sigma: t.pdf(
-                    x, df=df, loc=mu, scale=sigma
-                )
-                poptStudentT, _ = curve_fit(funcStudentT, bins, vals)
-                print(poptStudentT)
-
-                funcCauchy = lambda x, mu, sigma: cauchy.pdf(x, loc=mu, scale=sigma)
-                poptCauchy, _ = curve_fit(funcCauchy, bins, vals)
-                print(poptCauchy)
-
-                plt.plot(
-                    bins,
-                    funcStudentT(bins, *poptStudentT),
-                    "m",
-                    label="student-t fit",
-                    linewidth=2.0,
-                )
-                plt.plot(
-                    bins,
-                    funcCauchy(bins, *poptCauchy),
-                    "c",
-                    label="cauchy fit",
-                    linewidth=2.0,
-                )
-
-                funcLogStudentT = lambda x, df, mu, sigma: t.logpdf(
-                    x, df=df, loc=mu, scale=sigma
-                )
-                funcLogNorm = lambda x, mu, sigma: norm.logpdf(x, loc=mu, scale=sigma)
-                funcLogCauchy = lambda x, mu, sigma: cauchy.logpdf(
-                    x, loc=mu, scale=sigma
-                )
-
-                plt.ylabel("relative frequency", fontsize=14)
-                plt.xlabel(xlabel, fontsize=14)
-                plt.legend()
-
-                plt.figure()
-                plt.plot(
-                    bins,
-                    funcLogHypsec(bins, *popt),
-                    "g",
-                    label="hypsec log fit",
-                    linewidth=2.0,
-                )
-                plt.plot(
-                    bins,
-                    funcLogNorm(bins, *poptNormal),
-                    "r",
-                    label="normal log fit",
-                    linewidth=2.0,
-                )
-                plt.plot(
-                    bins,
-                    funcLogStudentT(bins, *poptStudentT),
-                    "m",
-                    label="student-t log fit",
-                    linewidth=2.0,
-                )
-                plt.plot(
-                    bins,
-                    funcLogCauchy(bins, *poptCauchy),
-                    "c",
-                    label="cauchy log fit",
-                    linewidth=2.0,
-                )
-        plt.ylabel("relative frequency", fontsize=14)
-        plt.xlabel(xlabel, fontsize=14)
+      poptNormal, _ = curve_fit(funcNorm, bins, vals)
+      plt.plot(bins, funcNorm(bins, *poptNormal), 'r', label = 'normal fit (for comparison)', linewidth = 2.0, alpha = 0.5)
+      
+      if False:
+        funcStudentT = lambda x, df, mu, sigma : t.pdf(x, df = df, loc = mu, scale = sigma)
+        poptStudentT, _ = curve_fit(funcStudentT, bins, vals)
+        print(poptStudentT)
+        
+        funcCauchy = lambda x, mu, sigma : cauchy.pdf(x, loc = mu, scale = sigma)
+        poptCauchy, _ = curve_fit(funcCauchy, bins, vals)
+        print(poptCauchy)
+        
+        plt.plot(bins, funcStudentT(bins, *poptStudentT), 'm', label = 'student-t fit', linewidth = 2.0)
+        plt.plot(bins, funcCauchy(bins, *poptCauchy), 'c', label = 'cauchy fit', linewidth = 2.0)
+        
+        funcLogStudentT = lambda x, df, mu, sigma : t.logpdf(x, df = df, loc = mu, scale = sigma)
+        funcLogNorm = lambda x, mu, sigma : norm.logpdf(x, loc = mu, scale = sigma)
+        funcLogCauchy = lambda x, mu, sigma : cauchy.logpdf(x, loc = mu, scale = sigma)
+        
+        plt.ylabel("relative frequency", fontsize = 14)
+        plt.xlabel(xlabel, fontsize = 14)
         plt.legend()
-        plt.tight_layout()
+        
+        plt.figure()
+        plt.plot(bins, funcLogHypsec(bins, *popt), 'g', label = 'hypsec log fit', linewidth = 2.0)
+        plt.plot(bins, funcLogNorm(bins, *poptNormal), 'r', label = 'normal log fit', linewidth = 2.0)
+        plt.plot(bins, funcLogStudentT(bins, *poptStudentT), 'm', label = 'student-t log fit', linewidth = 2.0)
+        plt.plot(bins, funcLogCauchy(bins, *poptCauchy), 'c', label = 'cauchy log fit', linewidth = 2.0)
+    plt.ylabel("relative frequency", fontsize = 14)
+    plt.xlabel(xlabel, fontsize = 14)
+    plt.legend()
+    plt.tight_layout()
 
 
 # this is an optimized version of applying parsers.weightedGeomAvg to each of the columns separately

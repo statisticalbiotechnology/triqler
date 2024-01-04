@@ -10,6 +10,7 @@ import multiprocessing
 import warnings
 
 import numpy as np
+from job_pool import JobPool
 
 from . import __version__, __copyright__
 from . import parsers
@@ -636,9 +637,7 @@ def _pickedProteinStrategy(notPickedProteinOutputRows, decoyPattern):
 
 def getPosteriors(pickedProteinOutputRows, peps, params):
     if params["numThreads"] > 1:
-        from . import multiprocessing_pool as pool
-
-        processingPool = pool.MyPool(
+        processingPool = JobPool(
             processes=params["numThreads"], warningFilter=params["warningFilter"]
         )
 

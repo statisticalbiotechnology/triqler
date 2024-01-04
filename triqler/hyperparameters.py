@@ -381,42 +381,42 @@ def fitLogitNormalDIA(observedValues, imputedValues, params, plot):
     if plot:
         poptNormal, _ = curve_fit(funcNorm, bins, vals)
 
-    import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt
 
-    plt.figure()
-    plt.title("Curve fits for muDetect, sigmaDetect, muXIC and sigmaXIC", fontsize=14)
-    plt.bar(
-        bins, vals, width=bins[1] - bins[0], alpha=0.5, label="observed distribution"
-    )
-    plt.plot(
-        bins, funcLogitNormal(bins, *popt), "g", label="logit-normal fit", linewidth=2.0
-    )
-    plt.plot(
-        bins,
-        0.5 + 0.5 * np.tanh((np.array(bins) - popt[0]) / popt[1]),
-        "m",
-        label="logit-part fit",
-        linewidth=2.0,
-    )
-    plt.plot(
-        bins,
-        funcNorm(bins, popt[2], popt[3]),
-        "c",
-        label="normal-part fit",
-        linewidth=2.0,
-    )
-    plt.plot(
-        bins,
-        funcNorm(bins, *poptNormal),
-        "r",
-        label="normal fit (for comparison)",
-        linewidth=2.0,
-        alpha=0.5,
-    )
-    plt.ylabel("relative frequency", fontsize=14)
-    plt.xlabel("log10(intensity)", fontsize=14)
-    plt.legend()
-    plt.tight_layout()
+        plt.figure()
+        plt.title("Curve fits for muDetect, sigmaDetect, muXIC and sigmaXIC", fontsize=14)
+        plt.bar(
+            bins, vals, width=bins[1] - bins[0], alpha=0.5, label="observed distribution"
+        )
+        plt.plot(
+            bins, funcLogitNormal(bins, *popt), "g", label="logit-normal fit", linewidth=2.0
+        )
+        plt.plot(
+            bins,
+            0.5 + 0.5 * np.tanh((np.array(bins) - popt[0]) / popt[1]),
+            "m",
+            label="logit-part fit",
+            linewidth=2.0,
+        )
+        plt.plot(
+            bins,
+            funcNorm(bins, popt[2], popt[3]),
+            "c",
+            label="normal-part fit",
+            linewidth=2.0,
+        )
+        plt.plot(
+            bins,
+            funcNorm(bins, *poptNormal),
+            "r",
+            label="normal fit (for comparison)",
+            linewidth=2.0,
+            alpha=0.5,
+        )
+        plt.ylabel("relative frequency", fontsize=14)
+        plt.xlabel("log10(intensity)", fontsize=14)
+        plt.legend()
+        plt.tight_layout()
 
 
 def fitDist(ys, func, xlabel, varNames, params, plot, x=np.arange(-2, 2, 0.01)):

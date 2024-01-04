@@ -1,0 +1,1 @@
+python -u -m triqler --missing_value_prior DIA --decoy_pattern DECOY LFQBench_PS.csv | tee log.txt

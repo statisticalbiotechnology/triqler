@@ -16,7 +16,7 @@ except ImportError:
     except DistributionNotFound:
         pass
 
-__copyright__ = """Copyright (c) 2018-2023 Matthew The, Patrick Truong. All rights reserved.
+__copyright__ = """Copyright (c) 2018-2024 Matthew The, Patrick Truong. All rights reserved.
 Written by:
 - Matthew The (matthew.the@scilifelab.se)
 - Patrick Truong (patrick.truong@scilifelab.se)

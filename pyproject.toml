@@ -29,7 +29,7 @@ python = ">=3.8,<3.12"
 numpy = "^1.23.3"
 scipy = "^1.9.1"
 threadpoolctl = "^3.1.0"
-pandas = "^2.0.0"
+pandas = ">=1.4.0"
 job-pool = "^0.2.6"
 
 [tool.poetry.dev-dependencies]

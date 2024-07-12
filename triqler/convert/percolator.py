@@ -7,7 +7,7 @@ This script contains helper functions to parse percolator in and output files (t
 from __future__ import print_function
 
 import sys
-import csv
+import os
 import collections
 
 from .. import parsers
@@ -39,6 +39,7 @@ def parsePsmsPout(
     reader = parsers.getTsvReader(poutFile)
     headers = next(reader)  # save the header
 
+    # N.B. Crux switched to percolator's native format in v4.2
     cruxOutput = True if "percolator score" in headers else False
     if cruxOutput:
         proteinCol = headers.index("protein id")
@@ -51,6 +52,13 @@ def parsePsmsPout(
         peptideCol = headers.index("sequence")
         terminalsCol = headers.index("flanking aa")
     else:
+        psmIdCol = headers.index("PSMId")
+        filenameCol = -1
+        if "filename" in headers:
+            filenameCol = headers.index("filename")
+        scoreCol = headers.index("score")
+        postErrCol = headers.index("posterior_error_prob")
+        peptideCol = headers.index("peptide")
         proteinCol = headers.index("proteinIds")
         qvalCol = headers.index("q-value")
 
@@ -65,7 +73,7 @@ def parsePsmsPout(
             if cruxOutput:
                 proteins = list(set(row[proteinCol].split(",")))
             else:
-                proteins = row[5:]
+                proteins = row[proteinCol:]
 
             if proteinMap:
                 proteins = list(map(proteinMap, proteins))
@@ -87,27 +95,32 @@ def parsePsmsPout(
                     proteins,
                 )
             elif parseId:
+                if filenameCol != -1:
+                    filename = os.path.splitext(os.path.basename(row[filenameCol]))[0]
+                else:
+                    filename = getFileName(row[psmIdCol], fixScannr)
+                
                 yield PercolatorPoutPsms(
-                    row[0],
-                    getFileName(row[0], fixScannr),
-                    getId(row[0], fixScannr),
-                    getCharge(row[0]),
-                    float(row[1]),
+                    row[psmIdCol],
+                    filename,
+                    getId(row[psmIdCol], fixScannr),
+                    getCharge(row[psmIdCol]),
+                    float(row[scoreCol]),
                     float(row[qvalCol]),
-                    float(row[3]),
-                    row[4],
+                    float(row[postErrCol]),
+                    row[peptideCol],
                     proteins,
                 )
             else:
                 yield PercolatorPoutPsms(
-                    row[0],
+                    row[psmIdCol],
                     "",
                     0,
                     0,
-                    float(row[1]),
-                    float(row[2]),
-                    float(row[3]),
-                    row[4],
+                    float(row[scoreCol]),
+                    float(row[qvalCol]),
+                    float(row[postErrCol]),
+                    row[peptideCol],
                     proteins,
                 )
         else:

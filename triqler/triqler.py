@@ -432,22 +432,26 @@ def _getFilesAndGroups(runCondPairs):
     fileList = list()
     groupLabels, groups = list(), list()
     for run, cond in runCondPairs:
-        if run not in fileList:
-            fileList.append(run)
-            if cond not in groupLabels:
-                groupLabels.append(cond)
-                groups.append([])
-            groups[groupLabels.index(cond)].append(len(fileList) - 1)
+        if run in fileList:
+            raise ValueError(f"Run \"{run}\" with condition \"{cond}\" was already assigned to a different condition. Remember to give each run a unique name.")
+        
+        fileList.append(run)
+        if cond not in groupLabels:
+            groupLabels.append(cond)
+            groups.append([])
+        groups[groupLabels.index(cond)].append(len(fileList) - 1)
 
     if len(fileList) < 2:
-        sys.exit("ERROR: There should be at least two runs.")
-    elif len(groups) < 2:
-        sys.exit(
-            "ERROR: At least two conditions (treatment groups) should be specified."
+        raise ValueError("There should be at least two runs.")
+    
+    if len(groups) < 2:
+        raise ValueError(
+            "At least two conditions (treatment groups) should be specified."
         )
-    elif min([len(g) for g in groups]) < 2:
-        sys.exit(
-            "ERROR: Each condition (treatment group) should have at least two runs."
+    
+    if min([len(g) for g in groups]) < 2:
+        raise ValueError(
+            "Each condition (treatment group) should have at least two runs."
         )
 
     return fileList, groupLabels, groups

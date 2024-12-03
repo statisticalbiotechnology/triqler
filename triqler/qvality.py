@@ -320,6 +320,9 @@ def splineEval(scores, medians, variables):
     _, _, g, _, _, gamma, _, _ = variables
     # score = np.exp(score)
     n = len(medians)
+    if n < 3:
+        raise IndexError(f"Only found {n} unique scoring bins, at least 3 are needed to estimate posterior error probabilities.")
+    
     rights = np.searchsorted(medians, scores)
 
     derr = (g[1] - g[0]) / (medians[1] - medians[0]) - (

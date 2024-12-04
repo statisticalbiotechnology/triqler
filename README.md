@@ -137,6 +137,8 @@ Some remarks:
     database concatenated to the target database.
 -   The intensities should **not** be log transformed, Triqler will do
     this transformation for you.
+-   An intensity of 0 is considered a missing value and the row will be
+    discarded.
 -   The search engine scores should be such that higher scores indicate
     a higher confidence in the PSM.
 -   We recommend usage of well calibrated search engine scores, e.g. the

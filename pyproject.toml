@@ -25,8 +25,8 @@ plot_hyperparameter_fits = 'triqler.distribution.plot_hyperparameter_fits:main'
 plot_posteriors = 'triqler.distribution.plot_posteriors:main'
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.12"
-numpy = "^1.23.3"
+python = ">=3.9,<3.13"
+numpy = "^2.0.0"
 scipy = "^1.9.1"
 threadpoolctl = "^3.1.0"
 pandas = ">=1.4.0"

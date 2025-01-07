@@ -1,3 +1,11 @@
+v0.08.0
+* Update numpy to v2 (#34)
+* Update README to clarify that 0 intensities are considered missing values (#31)
+* More descriptive IndexError when PEPs (or q-values?) cannot be calculated from score distribution (#29)
+* Better error message for same run name in different conditions (#30)
+* Fix percolator parser to support filename column
+* Fix system tests to allow tolerance of 0.1% for floating point numbers
+
 v0.07.3
 * Fix DIA prior fitting matplotlib dependency
 * Weaken pandas version requirement to >=1.4.0

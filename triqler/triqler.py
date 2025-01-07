@@ -29,6 +29,10 @@ def main():
 
     args, params = parseArgs()
 
+    # set the random seed for np.random.shuffle in doPickedProteinQuantification() and 
+    # np.random.choice in qvality.py
+    np.random.seed(1)
+
     params["warningFilter"] = "ignore"
     with warnings.catch_warnings():
         warnings.simplefilter(params["warningFilter"])

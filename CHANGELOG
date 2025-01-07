@@ -1,5 +1,5 @@
 v0.08.0
-* Update numpy to v2 (#34)
+* Update numpy to v2 and python>=3.9 (#34)
 * Update README to clarify that 0 intensities are considered missing values (#31)
 * More descriptive IndexError when PEPs (or q-values?) cannot be calculated from score distribution (#29)
 * Better error message for same run name in different conditions (#30)

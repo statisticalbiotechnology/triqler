@@ -29,7 +29,7 @@ def main():
 
     args, params = parseArgs()
 
-    # set the random seed for np.random.shuffle in doPickedProteinQuantification() and 
+    # set the random seed for np.random.shuffle in doPickedProteinQuantification() and
     # np.random.choice in qvality.py
     np.random.seed(1)
 
@@ -437,8 +437,10 @@ def _getFilesAndGroups(runCondPairs):
     groupLabels, groups = list(), list()
     for run, cond in runCondPairs:
         if run in fileList:
-            raise ValueError(f"Run \"{run}\" with condition \"{cond}\" was already assigned to a different condition. Remember to give each run a unique name.")
-        
+            raise ValueError(
+                f'Run "{run}" with condition "{cond}" was already assigned to a different condition. Remember to give each run a unique name.'
+            )
+
         fileList.append(run)
         if cond not in groupLabels:
             groupLabels.append(cond)
@@ -447,12 +449,12 @@ def _getFilesAndGroups(runCondPairs):
 
     if len(fileList) < 2:
         raise ValueError("There should be at least two runs.")
-    
+
     if len(groups) < 2:
         raise ValueError(
             "At least two conditions (treatment groups) should be specified."
         )
-    
+
     if min([len(g) for g in groups]) < 2:
         raise ValueError(
             "Each condition (treatment group) should have at least two runs."
@@ -646,7 +648,9 @@ def _pickedProteinStrategy(notPickedProteinOutputRows, decoyPattern):
 def getPosteriors(pickedProteinOutputRows, peps, params):
     if params["numThreads"] > 1:
         processingPool = JobPool(
-            processes=params["numThreads"], warningFilter=params["warningFilter"]
+            processes=params["numThreads"],
+            warningFilter=params["warningFilter"],
+            total_jobs=len([x for x in peps if x < 1.0]),
         )
 
     addDummyPosteriors = 0

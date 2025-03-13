@@ -1,3 +1,6 @@
+v0.08.1
+* Update job-pool version to v0.3.0
+
 v0.08.0
 * Update numpy to v2 and python>=3.9 (#34)
 * Update README to clarify that 0 intensities are considered missing values (#31)

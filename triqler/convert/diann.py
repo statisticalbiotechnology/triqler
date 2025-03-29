@@ -80,7 +80,10 @@ def diann_to_triqler(
     sample_mapper = dict(zip(file_list_df["run"], file_list_df["sample"]))
     condition_mapper = dict(zip(file_list_df["run"], file_list_df["condition"]))
 
-    df = pd.read_csv(diann_file_path, sep="\t")
+    if diann_file_path.endswith(".parquet"):
+        df = pd.read_parquet(diann_file_path)
+    else:
+        df = pd.read_csv(diann_file_path, sep="\t")
 
     df["run"] = df["Run"].map(sample_mapper)
     df["condition"] = df["Run"].map(condition_mapper)
@@ -89,6 +92,10 @@ def diann_to_triqler(
     df["intensity"] = df["Precursor.Quantity"]
     df["peptide"] = df["Stripped.Sequence"]
     df["proteins"] = df["Protein.Ids"]
+    if "Decoy" in df.columns:
+        df.loc[df["Decoy"] == 1, "proteins"] = df.loc[df["Decoy"] == 1, "proteins"].apply(
+            lambda proteins: ";".join(["decoy_" + x for x in proteins.split(";")])
+        )
     triqler_input_df = df[
         [
             "run",

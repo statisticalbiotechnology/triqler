@@ -1,7 +1,5 @@
 1. do test on example data: ./run_test.sh
 2. update version number: poetry version <major/minor/patch>
 3. add information to changelog on master: git log --pretty="%s"
-4. commit and push to master on github
-5. create a release on github and upload binaries, use the tag naming convention rel-<major>-<minor>-<patch>, e.g. rel-0-01-1
-   this automatically triggers a GitHub actions workflow that builds and publishes the packages to TestPyPI and PyPI
-6. create a branch on github with the version number
+4. commit and push to master on github. this automatically triggers a GitHub actions workflow that builds and publishes the packages to TestPyPI and PyPI
+5. create a branch on github with the version number

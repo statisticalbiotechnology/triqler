@@ -1,7 +1,12 @@
-v0.08.1
+v0.8.2
+* Add GitHub Actions auto-release workflow
+* Add support for DIA-NN 2.0 input with decoys (Fixes #23)
+* Allow custom protein name separator (Fixes #33)
+
+v0.8.1
 * Update job-pool version to v0.3.0
 
-v0.08.0
+v0.8.0
 * Update numpy to v2 and python>=3.9 (#34)
 * Update README to clarify that 0 intensities are considered missing values (#31)
 * More descriptive IndexError when PEPs (or q-values?) cannot be calculated from score distribution (#29)
@@ -9,91 +14,91 @@ v0.08.0
 * Fix percolator parser to support filename column
 * Fix system tests to allow tolerance of 0.1% for floating point numbers
 
-v0.07.3
+v0.7.3
 * Fix DIA prior fitting matplotlib dependency
 * Weaken pandas version requirement to >=1.4.0
 
-v0.07.2
+v0.7.2
 * Replace multiprocessing_pool by job-pool package
 * Update version retrieval
 * First unit test
 * Linting
 
-v0.07.1
+v0.7.1
 * Add file list mapping functionality to DIA-NN converter (#20)
 
-v0.07
+v0.7
 * Added option to estimate hyperparameter priors for DIA data
 * Added DIA-NN to triqler converter
 * Added pandas as dependency for DIA prior
 * Clean up sub-packages (#19)
 
-v0.06.4
+v0.6.4
 * Fixed csv field_size_limit function call (#17)
 * Added poetry environment
 
-v0.06.3
+v0.6.3
 * List comprehensions replaced with numpy methods for some quick gains (#16)
 * Up the CSV field size limit (#16)
 
-v0.06.2
+v0.6.2
 * Added limit to number of cores for qvality (#13)
 
-v0.06.1
+v0.6.1
 * Added lower bound estimate based on sigmaProtein and numSamples
 
-v0.06
+v0.6
 * Added posterior heatmap plots for lists of protein IDs
 * Added --use-gene-names option for MaxQuant converter
 
-v0.05
+v0.5
 * Updates to dinosaur converter
 * Added plotting flags for posterior plots
 
-v0.04
+v0.4
 * Experimental support for MaxQuant MBR
 * Added Dinosaur converter
 * Fixed some converter scripts Python 3 compatibility (#12)
 * Fixed problem with standalone percolator input for dinosaur converter
 * Add support for disabling multithreading (by setting --num_threads 1)
 
-v0.03.1
+v0.3.1
 * Added issued command to log
 * Fixed MaxQuant converter with fractionated data (#10)
 * Fixed small issues with posterior distribution package
 
-v0.03
+v0.3
 * Added support for converting Quandenser and MaxQuant results to Triqler input format (#5)
 * Added support for printing posterior distributions to a file
 * Added support for plotting posterior distributions and hyperparameter estimation fits
 
-v0.02.1
+v0.2.1
 * Fixed problems with CSV reading and writing on Windows (#9)
 * Fixed lambda function pickling problem with multiprocessing on Windows (#8)
 
-v0.02
+v0.2
 * Fixed empty columns as extra proteins issue (#4)
 * Improved logging messages
 * Optimizations for very large datasets. Replaced some operations on python lists by their numpy equivalents to speed up calculation on larger datasets. Also, we now skip the posterior calculation for proteins with identification PEP = 1.0, since they will never be differentially abundant anyway.
 
-v0.01.4
+v0.1.4
 * Fixed windows multiprocessing error more elegantly (#2)
 * Suppressed warnings from child processes (#3)
 
-v0.01.3
+v0.1.3
 * Fixed Windows multiprocessing error (#2)
 * Added spectrum identifier to peptide output
 
-v0.01.2
+v0.1.2
 * Bumped numpy dependency to 1.12 for numpy.count_nonzero along axis
 * Removed need for cond_idx:cond_name format for condition column
 * Set --min_samples option to 2 instead of 1 and added check for --min_samples >= 2
 * Added filter for entries with 0 or NaN intensity
 * Added run dependent identification PEP for consensus spectra
 
-v0.01.1
+v0.1.1
 * Fixed dependency on qvality (#1)
 * Changed to (slightly slower) 2D integration for in-group variance latent variable.
 
-v0.01.0
+v0.1.0
 * Initial release

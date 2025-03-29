@@ -82,6 +82,13 @@ def parseArgs():
     )
 
     apars.add_argument(
+        "--protein_name_separator",
+        default="\t",
+        metavar="P",
+        help="Separator used in tab delimited input and output for separating protein names.",
+    )
+
+    apars.add_argument(
         "--missing_value_prior",
         default="default",
         metavar="D",
@@ -151,6 +158,7 @@ def parseArgs():
     params["t-test"] = args.ttest
     params["minSamples"] = args.min_samples
     params["decoyPattern"] = args.decoy_pattern
+    params["proteinNameSeparator"] = args.protein_name_separator
     params["missingValuePrior"] = args.missing_value_prior
     params["numThreads"] = args.num_threads
     params["writeSpectrumQuants"] = args.write_spectrum_quants
@@ -224,7 +232,9 @@ def convertTriqlerInputToPeptQuantRows(triqlerInputFile, peptQuantRowFile, param
         params["fileList"],
         params["groupLabels"],
         params["groups"],
-    ) = groupTriqlerRowsByFeatureGroup(triqlerInputFile, params["decoyPattern"])
+    ) = groupTriqlerRowsByFeatureGroup(
+        triqlerInputFile, params["decoyPattern"], params["proteinNameSeparator"]
+    )
 
     if params["hasLinkPEPs"] and params["writeSpectrumQuants"]:
         _, spectrumQuantRows, intensityDiv = _selectBestFeaturesPerRunAndPeptide(
@@ -262,14 +272,14 @@ def convertTriqlerInputToPeptQuantRows(triqlerInputFile, peptQuantRowFile, param
     return peptideQuantRows
 
 
-def groupTriqlerRowsByFeatureGroup(triqlerInputFile, decoyPattern):
+def groupTriqlerRowsByFeatureGroup(triqlerInputFile, decoyPattern, proteinNameSeparator):
     print("Parsing triqler input file")
 
     peptQuantRowMap = collections.defaultdict(list)
     seenSpectra = set()
     targetScores, decoyScores = list(), list()
     runCondPairs = list()
-    for i, trqRow in enumerate(parsers.parseTriqlerInputFile(triqlerInputFile)):
+    for i, trqRow in enumerate(parsers.parseTriqlerInputFile(triqlerInputFile, proteinNameSeparator)):
         if i % 1000000 == 0:
             print("  Reading row", i)
 

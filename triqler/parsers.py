@@ -7,6 +7,7 @@ Some helper functions to parse custom data files
 from __future__ import print_function
 
 import sys
+from typing import List
 import numpy as np
 import math
 import csv
@@ -197,18 +198,17 @@ class TriqlerInputRow(TriqlerInputRowBase):
         return "\t".join(map(str, self.toList()))
 
 
-def parseTriqlerInputFile(triqlerInputFile):
+def parseTriqlerInputFile(triqlerInputFile: str, proteinNameSeparator: str):
     reader = getTsvReader(triqlerInputFile)
     headers = next(reader)
     hasLinkPEPs = "linkPEP" in headers
-    getUniqueProteins = lambda x: list(set([p for p in x if len(p.strip()) > 0]))
     intensityCol = 7 if hasLinkPEPs else 4
     seenPeptChargePairs = dict()
     for i, row in enumerate(reader):
         intensity = float(row[intensityCol])
         if intensity > 0.0:
             if hasLinkPEPs:
-                proteins = getUniqueProteins(row[9:])
+                proteins = getUniqueProteins(row[9:], proteinNameSeparator)
                 yield TriqlerInputRow(
                     row[0],
                     row[1],
@@ -225,7 +225,7 @@ def parseTriqlerInputFile(triqlerInputFile):
                 key = (int(row[2]), row[5])
                 if key not in seenPeptChargePairs:
                     seenPeptChargePairs[key] = len(seenPeptChargePairs)
-                proteins = getUniqueProteins(row[6:])
+                proteins = getUniqueProteins(row[6:], proteinNameSeparator)
                 yield TriqlerInputRow(
                     row[0],
                     row[1],
@@ -238,6 +238,12 @@ def parseTriqlerInputFile(triqlerInputFile):
                     row[5],
                     proteins,
                 )
+
+
+def getUniqueProteins(proteins: List[str], proteinNameSeparator: str):
+    if proteinNameSeparator != "\t":
+        proteins = proteins[0].split(proteinNameSeparator)
+    return list(set([p for p in proteins if len(p.strip()) > 0]))
 
 
 def hasLinkPEPs(triqlerInputFile):

@@ -1,0 +1,56 @@
+name: Auto Release
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, 'Ready for v')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version from commit message
+        id: extract_version
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          if [[ "$COMMIT_MSG" =~ Ready\ for\ v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            echo "VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
+          else
+            echo "No version match found."
+            exit 1
+          fi
+
+      - name: Generate tag name
+        id: generate_tage_name
+        run: |
+          echo "TAG_NAME=$(echo "$VERSION" | awk -F. '{printf "rel-%d-%02d-%d", $1, $2, $3}')" >> $GITHUB_ENV
+      - name: Extract release notes from CHANGELOG
+        id: extract_notes
+        run: |
+          VERSION="v${VERSION}"
+          echo "Extracting release notes for $VERSION"
+
+          # Extract the section for the version from the CHANGELOG
+          NOTES=$(awk "/^$VERSION\$/,/^\$/" CHANGELOG | sed '$d')
+
+          if [[ -z "$NOTES" ]]; then
+            echo "No release notes found for $VERSION"
+            exit 1
+          fi
+
+          echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
+          echo "$NOTES" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: v${{ env.VERSION }}
+          body: ${{ env.RELEASE_NOTES }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }} # use PAT token instead of GITHUB_TOKEN to trigger additional workflows, see https://github.com/orgs/community/discussions/27028

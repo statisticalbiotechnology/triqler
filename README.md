@@ -22,6 +22,12 @@ Instructions for running the converters to the Triqler input format are
 available in our
 [wiki](https://github.com/statisticalbiotechnology/triqler/wiki).
 
+Supported search engines:
+- DIA-NN
+- Dinosaur+Percolator
+- MaxQuant
+- Quandenser
+
 ## Method description / Citation
 
 The, M. & Käll, L. (2019). Integrated identification and quantification

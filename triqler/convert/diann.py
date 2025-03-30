@@ -44,8 +44,7 @@ def parseArgs():
         "in_file",
         default=None,
         metavar="IN_FILE",
-        help="""DIA-NN output file
-                          """,
+        help="""DIA-NN main output file. Both .tsv (tab-separated-files) and .parquet format are supported.""",
     )
 
     requiredNamed.add_argument(

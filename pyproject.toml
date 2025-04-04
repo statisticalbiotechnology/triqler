@@ -11,7 +11,10 @@ keywords = ["mass spectrometry", "missing values", "proteomics", "quantification
 include = [
   "LICENSE",
 ]
-#build = "build.py" # this creates platform and python version specific packages when running poetry build. Not necessary here since we do not have compiled code, e.g. cython
+packages = [
+    {include = "triqler"},
+    {include = "tests", format = "sdist"},
+]
 
 [tool.poetry.scripts]
 triqler = 'triqler.triqler:main'

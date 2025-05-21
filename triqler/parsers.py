@@ -446,4 +446,4 @@ def geoNormalize(row):
 def cleanPeptide(peptide):
     if peptide[1] == "." and peptide[-2] == ".":
         peptide = peptide[2:-2]
-    return re.sub("\[[-0-9]*\]", "", peptide)
+    return re.sub(r"\[[-0-9]*\]", "", peptide)

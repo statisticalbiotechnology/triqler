@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "triqler"
-version = "0.8.2"
+version = "0.9.0"
 description = "Triqler: TRansparent Identification-Quantification-Linked Error Rates"
 authors = ["Matthew The <matthew.the@tum.de>", "Patrick Truong <patrick.truong@scilifelab.se>"]
 license= "Apache-2.0"
@@ -28,7 +28,7 @@ plot_hyperparameter_fits = 'triqler.distribution.plot_hyperparameter_fits:main'
 plot_posteriors = 'triqler.distribution.plot_posteriors:main'
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.10,<3.14"
 numpy = "^2.0.0"
 scipy = "^1.9.1"
 threadpoolctl = "^3.1.0"

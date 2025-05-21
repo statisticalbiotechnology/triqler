@@ -42,8 +42,8 @@ jobs:
       with:
         name: ${{ matrix.os }}-py${{ matrix.python-version }}
         path: |
-          "dist/*.whl"
-          "dist/*.tar.gz"
+          dist/*.whl
+          dist/*.tar.gz
 
 
   publish:

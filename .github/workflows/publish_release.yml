@@ -60,7 +60,7 @@ jobs:
         mv -v */*.tar.gz .
         rmdir ubuntu-*
     - name: Publish to TestPyPI
-      uses: pypa/gh-action-pypi-publish@v1.5.0
+      uses: pypa/gh-action-pypi-publish@v1.13.0
       with:
         user: __token__
         password: ${{ secrets.TEST_PYPI_API_TOKEN }}
@@ -69,7 +69,7 @@ jobs:
         print_hash: true
         packages_dir: "."
     - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@v1.5.0
+      uses: pypa/gh-action-pypi-publish@v1.13.0
       with:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}

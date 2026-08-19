@@ -40,8 +40,9 @@ def parseArgs():
     apars.add_argument(
         "in_file",
         default=None,
+        nargs="+",
         metavar="IN_FILE",
-        help="""MaxQuant evidence.txt file.
+        help="""MaxQuant evidence.txt file(s).
                           """,
     )
 
@@ -78,6 +79,12 @@ def parseArgs():
         action="store_true",
     )
 
+    apars.add_argument(
+        "--use_posterior_error_prob",
+        help="Use posterior error probability instead of Andromeda score from the MaxQuant output.",
+        action="store_true",
+    )
+
     # ------------------------------------------------
     args = apars.parse_args()
 
@@ -86,15 +93,18 @@ def parseArgs():
     params["skipNormalization"] = args.skip_normalization
     params["skipMBR"] = args.skip_mbr_rows
     params["useGeneNames"] = args.use_gene_names
+    params["usePosteriorErrorProb"] = args.use_posterior_error_prob
     params["plotScatter"] = False
 
     return args, params
 
 
-def convertMqToTriqler(fileListFile, mqEvidenceFile, triqlerInputFile, params):
+def convertMqToTriqler(fileListFile, mqEvidenceFiles, triqlerInputFile, params):
     fileInfoList = parsers.parseFileList(fileListFile)
 
-    peptideToFeatureMap = parseMqEvidenceFile(mqEvidenceFile, fileInfoList, params)
+    peptideToFeatureMap = collections.defaultdict(list)
+    for mqEvidenceFile in mqEvidenceFiles:
+        peptideToFeatureMap = parseMqEvidenceFile(mqEvidenceFile, fileInfoList, params, peptideToFeatureMap)
 
     rTimeArrays, factorArrays = helpers.getNormalizationFactorArrays(
         peptideToFeatureMap, fileInfoList, params
@@ -105,7 +115,7 @@ def convertMqToTriqler(fileListFile, mqEvidenceFile, triqlerInputFile, params):
     )
 
 
-def parseMqEvidenceFile(mqEvidenceFile, fileInfoList, params):
+def parseMqEvidenceFile(mqEvidenceFile, fileInfoList, params, peptideToFeatureMap):
     fileList, _, _, _ = zip(*fileInfoList)
     reader = parsers.getTsvReader(mqEvidenceFile)
     headers = next(reader)  # save the header
@@ -130,14 +140,18 @@ def parseMqEvidenceFile(mqEvidenceFile, fileInfoList, params):
         reverseCol = headers.index("reverse")
         contaminantCol = headers.index("contaminant")
     proteinCol = headers.index("leading proteins")
-    scoreCol = headers.index("score")
-    rtCol = headers.index("retention time")
+    if params["usePosteriorErrorProb"]:
+        scoreCol = headers.index("pep")
+    else:
+        scoreCol = headers.index("score")
+
+    if not params["skipNormalization"]:
+        rtCol = headers.index("retention time")
 
     fractionCol = headers.index("fraction") if "fraction" in headers else -1
     experimentCol = headers.index("experiment") if "experiment" in headers else -1
 
     print("Parsing MaxQuant evidence.txt file")
-    peptideToFeatureMap = collections.defaultdict(list)
     for lineIdx, row in enumerate(reader):
         if lineIdx % 500000 == 0:
             print("  Reading line", lineIdx)
@@ -195,6 +209,13 @@ def parseMqEvidenceFile(mqEvidenceFile, fileInfoList, params):
                 row[fractionCol],
             )
 
+            score = np.log(float(row[scoreCol]))
+            if params["usePosteriorErrorProb"]:
+                score *= -1
+            retention_time = 0.0
+            if not params["skipNormalization"]:
+                retention_time = float(row[rtCol])
+
             triqlerRow = parsers.TriqlerInputRow(
                 sample,
                 condition,
@@ -202,12 +223,12 @@ def parseMqEvidenceFile(mqEvidenceFile, fileInfoList, params):
                 lineIdx,
                 linkPEP,
                 featureClusterIdx,
-                np.log(float(row[scoreCol])),
+                score,
                 float(row[intensityCol]),
                 row[peptCol],
                 proteins,
             )
-            peptideToFeatureMap[key].append((triqlerRow, float(row[rtCol]), fraction))
+            peptideToFeatureMap[key].append((triqlerRow, retention_time, fraction))
 
     return peptideToFeatureMap
 

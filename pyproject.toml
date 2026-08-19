@@ -29,16 +29,16 @@ plot_posteriors = 'triqler.distribution.plot_posteriors:main'
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.14"
-numpy = "^2.0.0"
-scipy = "^1.9.1"
-threadpoolctl = "^3.1.0"
+numpy = ">=2.0.0"
+scipy = ">=1.9.1"
+threadpoolctl = ">=3.1.0"
 pandas = ">=1.4.0"
 job-pool = ">=0.3.0"
 pyarrow = ">=19.0.1"
 
 [tool.poetry.dev-dependencies]
-pytest = "^6.2.4"
-pytest-cov = "^2.12.1"
+pytest = ">=6.2.4"
+pytest-cov = ">=2.12.1"
 
 [build-system]
 requires = ["poetry-core>=1.5.1"]

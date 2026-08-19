@@ -1,3 +1,8 @@
+v0.9.2
+* Remove upper version limit of all dependencies
+* Upgrade action-gh-release from v2 to v3
+* Allow combining multiple evidence.txt files for MQ converter
+
 v0.9.1
 * Remove upper version limit for pyarrow
 

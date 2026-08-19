@@ -47,10 +47,9 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.TAG_NAME }}
           name: v${{ env.VERSION }}
           body: ${{ env.RELEASE_NOTES }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT }} # use PAT token instead of GITHUB_TOKEN to trigger additional workflows, see https://github.com/orgs/community/discussions/27028
+          token: ${{ secrets.PAT }} # use PAT token instead of GITHUB_TOKEN to trigger additional workflows, see https://github.com/orgs/community/discussions/27028
